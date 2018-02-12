@@ -4,6 +4,10 @@ import java.util.Arrays;
 
 /**
  * Identifier base type that identifies a specific lock.
+ * <p>
+ * A lock represents an immutable sequence of {@link Object}s (called lock
+ * properties), where the {@link Object}s itself and their order determines the
+ * outcome of {@link #equals(Object)} and {@link #hashCode()}.
  */
 public abstract class LockIdentifier {
 
@@ -15,20 +19,27 @@ public abstract class LockIdentifier {
 	 * The given properties will be used as identifying values for the lock, in
 	 * exactly the given order.
 	 * 
-	 * @param properties
-	 *            The properties that identify this identifier; might be null but
-	 *            might <b>not</b> be empty.
+	 * @param lockProperties
+	 *            The properties that identify this identifier; might contain nulls,
+	 *            but might <b>not</b> be null or empty.
 	 */
-	public LockIdentifier(Object... properties) {
-		if (properties != null && properties.length == 0) {
+	protected LockIdentifier(Object... lockProperties) {
+		if (lockProperties == null || lockProperties.length == 0) {
 			throw new IllegalArgumentException(
-					"Cannot create a lock identifier using 0 properties for identification, as that would cause all identifiers to be equal.");
+					"Cannot create a lock identifier using a null or empty property sequence for identification.");
 		}
-		this.properties = properties;
+		this.properties = lockProperties;
 	}
 
-	final Object[] getProperties() {
-		return this.properties;
+	/**
+	 * Returns a copy of the underlying lock property sequence.
+	 * <p>
+	 * Modifying the sequence has no effect on the lock.
+	 * 
+	 * @return A copy of the lock sequence; never null.
+	 */
+	public final Object[] getLockProperties() {
+		return Arrays.copyOf(this.properties, this.properties.length);
 	}
 
 	@Override
@@ -38,7 +49,7 @@ public abstract class LockIdentifier {
 		result = prime * result + Arrays.hashCode(properties);
 		return result;
 	}
-
+	
 	@Override
 	public final boolean equals(Object obj) {
 		if (this == obj)
@@ -54,7 +65,7 @@ public abstract class LockIdentifier {
 	}
 
 	@Override
-	public final String toString() {
+	public String toString() {
 		return getClass().getSimpleName() + " [properties=" + Arrays.toString(properties) + "]";
 	}
 }
