@@ -39,6 +39,7 @@
 
 	<modules>
 		<module>concurrency-essentials</module>
+		<module>reflection-essentials</module>
 	</modules>
 
 	<distributionManagement>
