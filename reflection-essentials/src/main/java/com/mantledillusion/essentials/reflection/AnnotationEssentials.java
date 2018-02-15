@@ -26,8 +26,8 @@ public final class AnnotationEssentials {
 		private final Annotation annotation;
 		private final AnnotatedElement annotatedElement;
 
-		private AnnotationOccurrence(Annotation annoation, AnnotatedElement annotatedElement) {
-			this.annotation = annoation;
+		private AnnotationOccurrence(Annotation annotation, AnnotatedElement annotatedElement) {
+			this.annotation = annotation;
 			this.annotatedElement = annotatedElement;
 		}
 
@@ -103,6 +103,10 @@ public final class AnnotationEssentials {
 	 * - The return type of any of these type's {@link Method}s<br>
 	 * - The {@link Annotation}s on any of the above<br>
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
+	 * @param <A>
+	 *            The {@link Annotation} type to find on {@link Annotation}s.
 	 * @param clazz
 	 *            The {@link Class} to search the annotated {@link Annotation}s on;
 	 *            might be null, although the result will be empty.
@@ -113,8 +117,8 @@ public final class AnnotationEssentials {
 	 *         given type, annotated with the given {@link Annotation}; never null,
 	 *         might be empty
 	 */
-	public static List<AnnotationOccurrence> getAnnotationsAnnotatedWith(Class<?> clazz,
-			Class<? extends Annotation> annotationClass) {
+	public static <T, A extends Annotation> List<AnnotationOccurrence> getAnnotationsAnnotatedWith(Class<T> clazz,
+			Class<A> annotationClass) {
 		if (annotationClass == null) {
 			throw new IllegalArgumentException(
 					"Cannot search annotated annotations on a class with a null annotation type to search for.");
@@ -123,8 +127,8 @@ public final class AnnotationEssentials {
 				AnnotationEssentials.getAnnotationsAnnotatedWith(clazz, annotationClass, new HashSet<>()));
 	}
 
-	private static List<AnnotationOccurrence> getAnnotationsAnnotatedWith(Class<?> clazz,
-			Class<? extends Annotation> annotationType, Set<Class<? extends AnnotatedElement>> visited) {
+	private static <T, A extends Annotation> List<AnnotationOccurrence> getAnnotationsAnnotatedWith(Class<T> clazz,
+			Class<A> annotationType, Set<Class<? extends AnnotatedElement>> visited) {
 		List<AnnotationOccurrence> annotated;
 		if (clazz != null) {
 			annotated = getAnnotationsAnnotatedWith(clazz.getSuperclass(), annotationType, visited);
@@ -159,7 +163,7 @@ public final class AnnotationEssentials {
 		return annotated;
 	}
 
-	private static void addAnnotatedAnnotations(AnnotatedElement e, Class<? extends Annotation> annotationType,
+	private static <A extends Annotation> void addAnnotatedAnnotations(AnnotatedElement e, Class<A> annotationType,
 			List<AnnotationOccurrence> annotated, Set<Class<? extends AnnotatedElement>> visited) {
 		if (e != null) {
 			visited.add(e.getClass());

@@ -17,6 +17,8 @@ public final class ConstructorEssentials {
 	 * Finds all declared constructors of the given type, ordered by parameter
 	 * count.
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to search {@link Constructor}s on; might be
 	 *            null, although the result will be empty.
@@ -44,6 +46,8 @@ public final class ConstructorEssentials {
 	 * Finds all declared constructors of the given type, annotated with the given
 	 * annotation and ordered ascending by parameter count.
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to search {@link Constructor}s on; might be
 	 *            null, although the result will be empty.

@@ -43,26 +43,29 @@ public final class TypeEssentials {
 	 * {@link Class}es of interfaces that are implemented multiple times in the
 	 * {@link Class}es hierarchy are only listed once on their highest occurrence.
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to search super {@link Class}es on; might be
 	 *            null, although the result will be empty.
 	 * @return An immutable, ordered {@link List} of all super {@link Class}s of the
 	 *         given type; never null, might be empty.
 	 */
-	public static List<Class<?>> getSuperClasses(Class<?> type) {
-		LinkedHashSet<Class<?>> classes = new LinkedHashSet<>();
-		addSuperClasses(classes, type);
+	public static <T> List<Class<? super T>> getSuperClasses(Class<T> clazz) {
+		LinkedHashSet<Class<? super T>> classes = new LinkedHashSet<>();
+		addSuperClasses(classes, clazz);
 		return Collections.unmodifiableList(new ArrayList<>(classes));
 	}
 
-	private static void addSuperClasses(Set<Class<?>> classes, Class<?> type) {
-		if (type != null) {
-			addSuperClasses(classes, type.getSuperclass());
-			for (Class<?> iface : type.getInterfaces()) {
-				addSuperClasses(classes, iface);
+	@SuppressWarnings("unchecked")
+	private static <T> void addSuperClasses(Set<Class<? super T>> classes, Class<? super T> clazz) {
+		if (clazz != null) {
+			addSuperClasses(classes, clazz.getSuperclass());
+			for (Class<?> iface : clazz.getInterfaces()) {
+				addSuperClasses(classes, (Class<? super T>) iface);
 			}
-			if (!classes.contains(type)) {
-				classes.add(type);
+			if (!classes.contains(clazz)) {
+				classes.add(clazz);
 			}
 		}
 	}
@@ -82,6 +85,10 @@ public final class TypeEssentials {
 	 * {@link Class}es of interfaces that are implemented multiple times in the
 	 * {@link Class}es hierarchy are only listed once on their highest occurrence.
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
+	 * @param <A>
+	 *            The {@link Annotation} type to search for.
 	 * @param clazz
 	 *            The {@link Class} to search super {@link Class}es on; might be
 	 *            null, although the result will be empty.
@@ -91,26 +98,27 @@ public final class TypeEssentials {
 	 * @return An immutable, ordered {@link List} of all super {@link Class}s of the
 	 *         given type; never null, might be empty.
 	 */
-	public static List<Class<?>> getSuperClassesAnnotatedWith(Class<?> type,
-			Class<? extends Annotation> annotationClass) {
+	public static <T, A extends Annotation> List<Class<? super T>> getSuperClassesAnnotatedWith(Class<T> clazz,
+			Class<A> annotationClass) {
 		if (annotationClass == null) {
 			throw new IllegalArgumentException(
 					"Cannot search annotated classes on a class with a null annotation type to search for.");
 		}
-		LinkedHashSet<Class<?>> classes = new LinkedHashSet<>();
-		addSuperClassesAnnotatedWith(classes, type, annotationClass);
+		LinkedHashSet<Class<? super T>> classes = new LinkedHashSet<>();
+		addSuperClassesAnnotatedWith(classes, clazz, annotationClass);
 		return Collections.unmodifiableList(new ArrayList<>(classes));
 	}
 
-	private static void addSuperClassesAnnotatedWith(Set<Class<?>> classes, Class<?> type,
-			Class<? extends Annotation> annotationClass) {
-		if (type != null) {
-			addSuperClassesAnnotatedWith(classes, type.getSuperclass(), annotationClass);
-			for (Class<?> iface : type.getInterfaces()) {
-				addSuperClassesAnnotatedWith(classes, iface, annotationClass);
+	@SuppressWarnings("unchecked")
+	private static <T, A extends Annotation> void addSuperClassesAnnotatedWith(Set<Class<? super T>> classes,
+			Class<? super T> clazz, Class<A> annotationClass) {
+		if (clazz != null) {
+			addSuperClassesAnnotatedWith(classes, clazz.getSuperclass(), annotationClass);
+			for (Class<?> iface : clazz.getInterfaces()) {
+				addSuperClassesAnnotatedWith(classes, (Class<? super T>) iface, annotationClass);
 			}
-			if (!classes.contains(type) && type.isAnnotationPresent(annotationClass)) {
-				classes.add(type);
+			if (!classes.contains(clazz) && clazz.isAnnotationPresent(annotationClass)) {
+				classes.add(clazz);
 			}
 		}
 	}
@@ -125,15 +133,17 @@ public final class TypeEssentials {
 	 * these will be the results:<br>
 	 * - 'A' = null<br>
 	 * - 'A[]' = null<br>
-	 * - 'A&ltB&gt' = A&ltB&gt<br>
-	 * - 'T extends A&ltB&gt' = A&ltB&gt<br>
-	 * - '? super A&ltB&gt' = A&ltB&gt<br>
-	 * - 'A&ltB&gt[]' = A&ltB&gt<br>
-	 * - 'Map&ltString, A&ltB&gt&gt = null<br>
+	 * - 'A&lt;B&gt;' = A&lt;B&gt;<br>
+	 * - 'T extends A&lt;B&gt;' = A&lt;B&gt;<br>
+	 * - '? super A&lt;B&gt;' = A&lt;B&gt;<br>
+	 * - 'A&lt;B&gt;[]' = A&lt;B&gt;<br>
+	 * - 'Map&lt;String, A&lt;B&gt;&gt; = null<br>
 	 * <P>
 	 * Also note that on {@link WildcardType}s, the lower bounds are preferred.
 	 * 
-	 * @param typeToFind
+	 * @param <T>
+	 *            The {@link Class} type.
+	 * @param classToFind
 	 *            The {@link Class} to find a {@link ParameterizedType} of.
 	 * @param typeToFindIn
 	 *            The {@link Type} to find the {@link ParameterizedType} in.
@@ -182,12 +192,14 @@ public final class TypeEssentials {
 	 * {@code byte, boolean, short, int, long, float, double,
 	 * char}.
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to check; might be null, although the result
 	 *            will always be false.
 	 * @return True if the {@link Class} is a primitive type, false otherwise
 	 */
-	public static boolean isStandartPrimitiveType(Class<?> clazz) {
+	public static <T> boolean isStandartPrimitiveType(Class<T> clazz) {
 		return TypeEssentials.STANDARD_PRIMITIVE_TYPES.contains(clazz);
 	}
 
@@ -209,13 +221,15 @@ public final class TypeEssentials {
 	 * {@code Byte, Boolean, Short, Integer, Long, Float, Double,
 	 * Character, String}
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to check; might be null, although the result
 	 *            will always be false.
 	 * @return True if the {@link Class} is a primitive wrapper type, false
 	 *         otherwise
 	 */
-	public static boolean isStandartPrimitiveWrapperType(Class<?> clazz) {
+	public static <T> boolean isStandartPrimitiveWrapperType(Class<T> clazz) {
 		return TypeEssentials.STANDARD_PRIMITIVE_WRAPPER_TYPES.contains(clazz);
 	}
 
@@ -238,13 +252,15 @@ public final class TypeEssentials {
 	 * {@code byte[], boolean[], short[], int[], long[], float[],
 	 * double[], char[]}
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to check; might be null, although the result
 	 *            will always be false.
 	 * @return True if the {@link Class} is a primitive array type, false otherwise
 	 */
-	public static boolean isStandartPrimitiveArrayType(Class<?> type) {
-		return TypeEssentials.STANDARD_PRIMITIVE_ARRAY_TYPES.contains(type);
+	public static <T> boolean isStandartPrimitiveArrayType(Class<T> clazz) {
+		return TypeEssentials.STANDARD_PRIMITIVE_ARRAY_TYPES.contains(clazz);
 	}
 
 	/**
