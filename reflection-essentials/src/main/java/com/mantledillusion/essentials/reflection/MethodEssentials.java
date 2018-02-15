@@ -28,19 +28,21 @@ public final class MethodEssentials {
 	 * {@link Method}s of interfaces that are implemented multiple times in the
 	 * {@link Class}es hierarchy are only listed once on their highest occurrence.
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to search {@link Method}s on; might be null,
 	 *            although the result will be empty.
 	 * @return An immutable, ordered {@link List} of all {@link Method}s of the
 	 *         given type; never null, might be empty.
 	 */
-	public static List<Method> getDeclaredMethods(Class<?> clazz) {
+	public static <T> List<Method> getDeclaredMethods(Class<T> clazz) {
 		LinkedHashSet<Method> methods = new LinkedHashSet<>();
 		addDeclaredMethods(methods, clazz);
 		return Collections.unmodifiableList(new ArrayList<>(methods));
 	}
 
-	private static void addDeclaredMethods(Set<Method> methods, Class<?> clazz) {
+	private static <T> void addDeclaredMethods(Set<Method> methods, Class<T> clazz) {
 		if (clazz != null) {
 			addDeclaredMethods(methods, clazz.getSuperclass());
 			for (Class<?> interf : clazz.getInterfaces()) {
@@ -67,6 +69,10 @@ public final class MethodEssentials {
 	 * - {@link Method}s of the second highest super type<br>
 	 * - etc
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
+	 * @param <A>
+	 *            The {@link Annotation} type to search for.
 	 * @param clazz
 	 *            The {@link Class} to search {@link Method}s on; might be null,
 	 *            although the result will be empty.
@@ -77,8 +83,8 @@ public final class MethodEssentials {
 	 *         given type that are annotated with the given {@link Annotation} type;
 	 *         never null, might be empty.
 	 */
-	public static List<Method> getDeclaredMethodsAnnotatedWith(Class<?> clazz,
-			Class<? extends Annotation> annotationClass) {
+	public static <T, A extends Annotation> List<Method> getDeclaredMethodsAnnotatedWith(Class<T> clazz,
+			Class<A> annotationClass) {
 		if (annotationClass == null) {
 			throw new IllegalArgumentException(
 					"Cannot search annotated methods on a class with a null annotation type to search for.");
@@ -88,8 +94,8 @@ public final class MethodEssentials {
 		return Collections.unmodifiableList(new ArrayList<>(methods));
 	}
 
-	private static void addDeclaredMethodsAnnotatedWith(Set<Method> methods, Class<?> clazz,
-			Class<? extends Annotation> annotationClass) {
+	private static <T, A extends Annotation> void addDeclaredMethodsAnnotatedWith(Set<Method> methods, Class<T> clazz,
+			Class<A> annotationClass) {
 		if (clazz != null) {
 			addDeclaredMethodsAnnotatedWith(methods, clazz.getSuperclass(), annotationClass);
 			for (Class<?> interf : clazz.getInterfaces()) {

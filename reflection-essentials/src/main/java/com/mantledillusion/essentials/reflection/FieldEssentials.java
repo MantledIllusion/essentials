@@ -27,19 +27,21 @@ public final class FieldEssentials {
 	 * {@link Field}s of interfaces that are implemented multiple times in the
 	 * {@link Class}es hierarchy are only listed once on their highest occurrence.
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
 	 * @param clazz
 	 *            The {@link Class} to search {@link Field}s on; might be null,
 	 *            although the result will be empty.
 	 * @return An immutable, ordered {@link List} of all {@link Field}s of the given
 	 *         type; never null, might be empty.
 	 */
-	public static List<Field> getDeclaredFields(Class<?> clazz) {
+	public static <T> List<Field> getDeclaredFields(Class<T> clazz) {
 		Set<Field> fields = new LinkedHashSet<>();
 		addDeclaredFields(fields, clazz);
 		return Collections.unmodifiableList(new ArrayList<>(fields));
 	}
 
-	private static void addDeclaredFields(Set<Field> fields, Class<?> clazz) {
+	private static <T> void addDeclaredFields(Set<Field> fields, Class<T> clazz) {
 		if (clazz != null) {
 			addDeclaredFields(fields, clazz.getSuperclass());
 			for (Class<?> interf : clazz.getInterfaces()) {
@@ -65,6 +67,10 @@ public final class FieldEssentials {
 	 * - {@link Field}s of the second highest super type<br>
 	 * - etc
 	 * 
+	 * @param <T>
+	 *            The {@link Class} type.
+	 * @param <A>
+	 *            The {@link Annotation} type to search for.
 	 * @param clazz
 	 *            The {@link Class} to search {@link Field}s on; might be null,
 	 *            although the result will be empty.
@@ -75,8 +81,8 @@ public final class FieldEssentials {
 	 *         type that are annotated with the given {@link Annotation} type; never
 	 *         null, might be empty.
 	 */
-	public static List<Field> getDeclaredFieldsAnnotatedWith(Class<?> clazz,
-			Class<? extends Annotation> annotationClass) {
+	public static <T, A extends Annotation> List<Field> getDeclaredFieldsAnnotatedWith(Class<T> clazz,
+			Class<A> annotationClass) {
 		if (annotationClass == null) {
 			throw new IllegalArgumentException(
 					"Cannot search annotated fields on a class with a null annotation type to search for.");
@@ -86,8 +92,8 @@ public final class FieldEssentials {
 		return Collections.unmodifiableList(new ArrayList<>(fields));
 	}
 
-	private static void addDeclaredFieldsAnnotatedWith(Set<Field> fields, Class<?> clazz,
-			Class<? extends Annotation> annotationType) {
+	private static <T, A extends Annotation> void addDeclaredFieldsAnnotatedWith(Set<Field> fields, Class<T> clazz,
+			Class<A> annotationType) {
 		if (clazz != null) {
 			addDeclaredFieldsAnnotatedWith(fields, clazz.getSuperclass(), annotationType);
 			for (Class<?> interf : clazz.getInterfaces()) {
