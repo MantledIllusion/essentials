@@ -51,18 +51,17 @@ public final class TypeEssentials {
 	 * @return An immutable, ordered {@link List} of all super {@link Class}s of the
 	 *         given type; never null, might be empty.
 	 */
-	public static <T> List<Class<? super T>> getSuperClasses(Class<T> clazz) {
-		LinkedHashSet<Class<? super T>> classes = new LinkedHashSet<>();
+	public static <T> List<Class<?>> getSuperClasses(Class<T> clazz) {
+		LinkedHashSet<Class<?>> classes = new LinkedHashSet<>();
 		addSuperClasses(classes, clazz);
 		return Collections.unmodifiableList(new ArrayList<>(classes));
 	}
 
-	@SuppressWarnings("unchecked")
-	private static <T> void addSuperClasses(Set<Class<? super T>> classes, Class<? super T> clazz) {
+	private static <T> void addSuperClasses(Set<Class<?>> classes, Class<T> clazz) {
 		if (clazz != null) {
 			addSuperClasses(classes, clazz.getSuperclass());
 			for (Class<?> iface : clazz.getInterfaces()) {
-				addSuperClasses(classes, (Class<? super T>) iface);
+				addSuperClasses(classes, iface);
 			}
 			if (!classes.contains(clazz)) {
 				classes.add(clazz);
@@ -98,24 +97,23 @@ public final class TypeEssentials {
 	 * @return An immutable, ordered {@link List} of all super {@link Class}s of the
 	 *         given type; never null, might be empty.
 	 */
-	public static <T, A extends Annotation> List<Class<? super T>> getSuperClassesAnnotatedWith(Class<T> clazz,
+	public static <T, A extends Annotation> List<Class<?>> getSuperClassesAnnotatedWith(Class<T> clazz,
 			Class<A> annotationClass) {
 		if (annotationClass == null) {
 			throw new IllegalArgumentException(
 					"Cannot search annotated classes on a class with a null annotation type to search for.");
 		}
-		LinkedHashSet<Class<? super T>> classes = new LinkedHashSet<>();
+		LinkedHashSet<Class<?>> classes = new LinkedHashSet<>();
 		addSuperClassesAnnotatedWith(classes, clazz, annotationClass);
 		return Collections.unmodifiableList(new ArrayList<>(classes));
 	}
 
-	@SuppressWarnings("unchecked")
-	private static <T, A extends Annotation> void addSuperClassesAnnotatedWith(Set<Class<? super T>> classes,
-			Class<? super T> clazz, Class<A> annotationClass) {
+	private static <T, A extends Annotation> void addSuperClassesAnnotatedWith(Set<Class<?>> classes,
+			Class<T> clazz, Class<A> annotationClass) {
 		if (clazz != null) {
 			addSuperClassesAnnotatedWith(classes, clazz.getSuperclass(), annotationClass);
 			for (Class<?> iface : clazz.getInterfaces()) {
-				addSuperClassesAnnotatedWith(classes, (Class<? super T>) iface, annotationClass);
+				addSuperClassesAnnotatedWith(classes, iface, annotationClass);
 			}
 			if (!classes.contains(clazz) && clazz.isAnnotationPresent(annotationClass)) {
 				classes.add(clazz);
