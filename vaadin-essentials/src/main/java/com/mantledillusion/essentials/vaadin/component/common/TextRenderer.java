@@ -4,7 +4,7 @@ package com.mantledillusion.essentials.vaadin.component.common;
  * Interface for renderers that can render a certain type to a {@link String} to
  * be used as text.
  *
- * @param <T>
+ * @param <T> The type to render as {@link String}.
  */
 public interface TextRenderer<T> {
 

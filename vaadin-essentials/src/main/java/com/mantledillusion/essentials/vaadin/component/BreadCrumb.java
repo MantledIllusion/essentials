@@ -362,7 +362,7 @@ public final class BreadCrumb<T> extends Composite {
 	 *            The element to add; might be null.
 	 * @param index
 	 *            The index to add the element at; has to be
-	 *            0<=index<={@link #getElementCount()}.
+	 *            0&gt;=index&gt;={@link #getElementCount()}.
 	 */
 	public void addElementAt(T element, int index) {
 		if (index < 0 || index > this.crumbs.size()) {
@@ -404,7 +404,7 @@ public final class BreadCrumb<T> extends Composite {
 	 * 
 	 * @param index
 	 *            The index of the element to remove; has to be
-	 *            0<=index<{@link #getElementCount()}.
+	 *            0&gt;=index&gt;{@link #getElementCount()}.
 	 */
 	@SuppressWarnings("unchecked")
 	public void removeElementAt(int index) {

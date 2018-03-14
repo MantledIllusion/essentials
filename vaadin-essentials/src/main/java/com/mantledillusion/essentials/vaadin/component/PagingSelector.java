@@ -87,7 +87,7 @@ public final class PagingSelector extends Composite {
 	 * {@link Constructor}.
 	 * 
 	 * @param pageSize
-	 *            The maximum entry count of a single page; has to be 1<=pageSize
+	 *            The maximum entry count of a single page; has to be 1&gt;=pageSize
 	 */
 	public PagingSelector(int pageSize) {
 		if (pageSize < 1) {
@@ -215,7 +215,7 @@ public final class PagingSelector extends Composite {
 	 * 
 	 * @param pageIndex
 	 *            The selected page index; has to be
-	 *            0<=pageIndex<{@link #getPageCount()}
+	 *            0&gt;=pageIndex&gt;{@link #getPageCount()}
 	 */
 	public void setSelectedPage(int pageIndex) {
 		if (pageIndex < 0) {
@@ -258,7 +258,7 @@ public final class PagingSelector extends Composite {
 	 * pages, which will result in the first page to be selected.
 	 * 
 	 * @param entryCount
-	 *            The count of the entries to page; has to be 0<=entryCount.
+	 *            The count of the entries to page; has to be 0&gt;=entryCount.
 	 */
 	public void setEntryCount(int entryCount) {
 		if (entryCount < 0) {
