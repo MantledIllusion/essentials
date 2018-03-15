@@ -598,6 +598,6 @@ public final class BreadCrumb<T> extends Composite {
 	}
 
 	private void indicatorClicked(Crumb crumb) {
-		fireEvent(new BreadCrumbSelectedEvent<>(this, crumb.payload));
+		fireEvent(new BreadCrumbIndicatorClickedEvent<>(this, crumb.payload));
 	}
 }
