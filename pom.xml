@@ -39,6 +39,7 @@
 
 	<modules>
 		<module>concurrency-essentials</module>
+		<module>object-essentials</module>
 		<module>reflection-essentials</module>
 		<module>vaadin-essentials</module>
 	</modules>

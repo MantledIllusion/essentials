@@ -1,0 +1,246 @@
+package com.mantledillusion.essentials.object;
+
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+/**
+ * Static utility that offers a sleek and tidy API to perform null-insecure
+ * operations safely using Java8's functional interfaces and lambdas.
+ * <p>
+ * This utility should be used in situations where the code to execute is small,
+ * but the required null checking required to run it safely is exponentially
+ * bigger.
+ */
+public class Null {
+
+	private Null() {
+	}
+
+	/**
+	 * Returns the default value if the given value is null.
+	 * 
+	 * @param <T>
+	 *            The type of object to default.
+	 * @param value
+	 *            The value to check; might be null.
+	 * @param defaultValue
+	 *            The default value to return if the given value is null; might be
+	 *            null.
+	 * @return The value if not null or the default value, might be null
+	 */
+	public static <T> T def(T value, T defaultValue) {
+		return value == null ? defaultValue : value;
+	}
+
+	/**
+	 * Retrieves an object using the given {@link Supplier}.
+	 * <P>
+	 * {@link NullPointerException}s thrown upon calling the given {@link Supplier}
+	 * are treated as if the {@link Supplier} had returned null.
+	 * 
+	 * @param <T>
+	 *            The type of object to retrieve.
+	 * @param supplier
+	 *            The {@link Supplier} to use to get the value; might <b>not</b> be
+	 *            null.
+	 * @return The result of the {@link Supplier}, might be null
+	 */
+	public static <T> T get(Supplier<T> supplier) {
+		return get(supplier, null);
+	}
+
+	/**
+	 * Retrieves an object using the given {@link Supplier}.
+	 * <P>
+	 * {@link NullPointerException}s thrown upon calling the given {@link Supplier}
+	 * are treated as if the {@link Supplier} has returned null.
+	 * 
+	 * @param <T>
+	 *            The object type to retrieve.
+	 * @param supplier
+	 *            The {@link Supplier} to use to get the value; might <b>not</b> be
+	 *            null.
+	 * @param defaultValue
+	 *            The default value to return if the object retrieved from the
+	 *            {@link Supplier} is null.
+	 * @return The result of the retriever, or if that is null, the default value.
+	 */
+	public static <T> T get(Supplier<T> supplier, T defaultValue) {
+		try {
+			return def(supplier.get(), defaultValue);
+		} catch (NullPointerException e) {
+			return defaultValue;
+		}
+	}
+
+	/**
+	 * Calls the given {@link Consumer} if and only if the value is not null.
+	 * 
+	 * @param <T>
+	 *            The type of object to operate on.
+	 * @param value
+	 *            The value that has to be null for the {@link Consumer} to be
+	 *            called; might be null.
+	 * @param consumer
+	 *            The {@link Consumer} to call if the given value is not null; might
+	 *            <b>not</b> be null.
+	 */
+	public static <T> void call(T value, Consumer<T> consumer) {
+		call(value, null, consumer);
+	}
+
+	/**
+	 * Calls the given {@link Consumer} if and only if the value is not null.
+	 * 
+	 * @param <T>
+	 *            The type of object to operate on.
+	 * @param value
+	 *            The value that has to be null for the {@link Consumer} to be
+	 *            called; might be null.
+	 * @param defaultValue
+	 *            The default value to call the {@link Consumer} with if the given
+	 *            value is null; might be null although in this case the
+	 *            {@link Consumer} is also not called.
+	 * @param consumer
+	 *            The {@link Consumer} to call if the given value is not null; might
+	 *            <b>not</b> be null.
+	 */
+	public static <T> void call(T value, T defaultValue, Consumer<T> consumer) {
+		if (value != null) {
+			consumer.accept(value);
+		} else if (defaultValue != null) {
+			consumer.accept(defaultValue);
+		}
+	}
+
+	/**
+	 * Calls the given {@link Consumer} if and only if the given {@link Supplier}
+	 * provides a non-null value.
+	 * 
+	 * @param <T>
+	 *            The type of object to operate on.
+	 * @param supplier
+	 *            The {@link Supplier} that has to provide a non-null value; might
+	 *            <b>not</b> be null.
+	 * @param consumer
+	 *            The {@link Consumer} to call if the {@link Supplier} provides a
+	 *            non-null value; might <b>not</b> be null.
+	 */
+	public static <T> void call(Supplier<T> supplier, Consumer<T> consumer) {
+		call(get(supplier), consumer);
+	}
+
+	/**
+	 * Calls the given {@link Consumer} if and only if the given {@link Supplier}
+	 * provides a non-null value.
+	 * 
+	 * @param <T>
+	 *            The type of object to operate on.
+	 * @param supplier
+	 *            The {@link Supplier} that has to provide a non-null value; might
+	 *            <b>not</b> be null.
+	 * @param defaultValue
+	 *            The default value to call the {@link Consumer} with if the value
+	 *            provided by the {@link Supplier} is null; might be null although
+	 *            in this case the {@link Consumer} is also not called.
+	 * @param consumer
+	 *            The {@link Consumer} to call if the {@link Supplier} provides a
+	 *            non-null value; might <b>not</b> be null.
+	 */
+	public static <T> void call(Supplier<T> supplier, T defaultValue, Consumer<T> consumer) {
+		call(get(supplier), defaultValue, consumer);
+	}
+
+	/**
+	 * Maps using the given {@link Function} if and only if the value is not null.
+	 * 
+	 * @param <T>
+	 *            The type of object to map.
+	 * @param <R>
+	 *            The type to map to.
+	 * @param value
+	 *            The value that has to be null for the {@link Consumer} to be
+	 *            called; might be null.
+	 * @param function
+	 *            The {@link Function} to call if the given value is not null; might
+	 *            <b>not</b> be null.
+	 * @return The mapped value, might be null
+	 */
+	public static <T, R> R map(T value, Function<T, R> function) {
+		return map(value, null, function);
+	}
+
+	/**
+	 * Maps using the given {@link Function} if and only if the value is not null.
+	 * 
+	 * @param <T>
+	 *            The type of object to map.
+	 * @param <R>
+	 *            The type to map to.
+	 * @param value
+	 *            The value that has to be null for the {@link Function} to be
+	 *            called; might be null.
+	 * @param defaultValue
+	 *            The default value to call the {@link Function} with if the given
+	 *            value is null; might be null although in this case the
+	 *            {@link Function} is also not called.
+	 * @param function
+	 *            The {@link Function} to call if the given value is not null; might
+	 *            <b>not</b> be null.
+	 * @return The mapped value, might be null
+	 */
+	public static <T, R> R map(T value, T defaultValue, Function<T, R> function) {
+		if (value != null) {
+			return function.apply(value);
+		} else if (defaultValue != null) {
+			return function.apply(defaultValue);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Maps using the given {@link Function} if and only if the given
+	 * {@link Supplier} provides a non-null value.
+	 * 
+	 * @param <T>
+	 *            The type of object to map.
+	 * @param <R>
+	 *            The type to map to.
+	 * @param supplier
+	 *            The {@link Supplier} that has to provide a non-null value; might
+	 *            <b>not</b> be null.
+	 * @param function
+	 *            The {@link Function} to call if the {@link Supplier} provides a
+	 *            non-null value; might <b>not</b> be null.
+	 * @return The mapped value, might be null
+	 */
+	public static <T, R> R map(Supplier<T> supplier, Function<T, R> function) {
+		return map(supplier.get(), function);
+	}
+
+	/**
+	 * Maps using the given {@link Function} if and only if the given
+	 * {@link Supplier} provides a non-null value.
+	 * 
+	 * @param <T>
+	 *            The type of object to map.
+	 * @param <R>
+	 *            The type to map to.
+	 * @param supplier
+	 *            The {@link Supplier} that has to provide a non-null value; might
+	 *            <b>not</b> be null.
+	 * @param defaultValue
+	 *            The default value to call the {@link Function} with if the value
+	 *            provided by the {@link Supplier} is null; might be null although
+	 *            in this case the {@link Function} is also not called.
+	 * @param function
+	 *            The {@link Function} to call if the {@link Supplier} provides a
+	 *            non-null value; might <b>not</b> be null.
+	 * @return The mapped value, might be null
+	 */
+	public static <T, R> R map(Supplier<T> supplier, T defaultValue, Function<T, R> function) {
+		return map(supplier.get(), defaultValue, function);
+	}
+}
