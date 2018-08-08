@@ -18,6 +18,64 @@ public class Null {
 	}
 
 	/**
+	 * Checks whether the given value is null.
+	 * 
+	 * @param <T>
+	 *            The type of object to check.
+	 * @param value
+	 *            The value to check; might be null.
+	 * @return True if the given value is null, false otherwise
+	 */
+	public static <T> boolean is(T value) {
+		return value == null;
+	}
+
+	/**
+	 * Checks whether the given value is null.
+	 * 
+	 * @param <T>
+	 *            The type of object to check.
+	 * @param value
+	 *            The value to check; might be null.
+	 * @return True if the given value is not null, false otherwise
+	 */
+	public static <T> boolean isNot(T value) {
+		return value != null;
+	}
+
+	/**
+	 * Checks whether the given value is null.
+	 * 
+	 * @param <T>
+	 *            The type of object to check.
+	 * @param value
+	 *            The value to check; might be null.
+	 * @throws NullPointerException
+	 *             Is thrown if the given value is null.
+	 */
+	public static <T> void not(T value) throws NullPointerException {
+		not(value, null);
+	}
+
+	/**
+	 * Checks whether the given value is null.
+	 * 
+	 * @param <T>
+	 *            The type of object to check.
+	 * @param value
+	 *            The value to check; might be null.
+	 * @param message
+	 *            The message du include in the {@link NullPointerException}.
+	 * @throws NullPointerException
+	 *             Is thrown if the given value is null.
+	 */
+	public static <T> void not(T value, String message) throws NullPointerException {
+		if (value == null) {
+			throw new NullPointerException(message);
+		}
+	}
+
+	/**
 	 * Returns the default value if the given value is null.
 	 * 
 	 * @param <T>
@@ -67,6 +125,10 @@ public class Null {
 	 * @return The result of the retriever, or if that is null, the default value.
 	 */
 	public static <T> T get(Supplier<T> supplier, T defaultValue) {
+		if (is(supplier)) {
+			throw new IllegalArgumentException("Cannot get a value from a null supplier.");
+		}
+
 		try {
 			return def(supplier.get(), defaultValue);
 		} catch (NullPointerException e) {
@@ -107,49 +169,15 @@ public class Null {
 	 *            <b>not</b> be null.
 	 */
 	public static <T> void call(T value, T defaultValue, Consumer<T> consumer) {
+		if (is(consumer)) {
+			throw new IllegalArgumentException("Cannot call a null consumer.");
+		}
+
 		if (value != null) {
 			consumer.accept(value);
 		} else if (defaultValue != null) {
 			consumer.accept(defaultValue);
 		}
-	}
-
-	/**
-	 * Calls the given {@link Consumer} if and only if the given {@link Supplier}
-	 * provides a non-null value.
-	 * 
-	 * @param <T>
-	 *            The type of object to operate on.
-	 * @param supplier
-	 *            The {@link Supplier} that has to provide a non-null value; might
-	 *            <b>not</b> be null.
-	 * @param consumer
-	 *            The {@link Consumer} to call if the {@link Supplier} provides a
-	 *            non-null value; might <b>not</b> be null.
-	 */
-	public static <T> void call(Supplier<T> supplier, Consumer<T> consumer) {
-		call(get(supplier), consumer);
-	}
-
-	/**
-	 * Calls the given {@link Consumer} if and only if the given {@link Supplier}
-	 * provides a non-null value.
-	 * 
-	 * @param <T>
-	 *            The type of object to operate on.
-	 * @param supplier
-	 *            The {@link Supplier} that has to provide a non-null value; might
-	 *            <b>not</b> be null.
-	 * @param defaultValue
-	 *            The default value to call the {@link Consumer} with if the value
-	 *            provided by the {@link Supplier} is null; might be null although
-	 *            in this case the {@link Consumer} is also not called.
-	 * @param consumer
-	 *            The {@link Consumer} to call if the {@link Supplier} provides a
-	 *            non-null value; might <b>not</b> be null.
-	 */
-	public static <T> void call(Supplier<T> supplier, T defaultValue, Consumer<T> consumer) {
-		call(get(supplier), defaultValue, consumer);
 	}
 
 	/**
@@ -191,6 +219,10 @@ public class Null {
 	 * @return The mapped value, might be null
 	 */
 	public static <T, R> R map(T value, T defaultValue, Function<T, R> function) {
+		if (is(function)) {
+			throw new IllegalArgumentException("Cannot map using a null function.");
+		}
+
 		if (value != null) {
 			return function.apply(value);
 		} else if (defaultValue != null) {
@@ -198,49 +230,5 @@ public class Null {
 		} else {
 			return null;
 		}
-	}
-
-	/**
-	 * Maps using the given {@link Function} if and only if the given
-	 * {@link Supplier} provides a non-null value.
-	 * 
-	 * @param <T>
-	 *            The type of object to map.
-	 * @param <R>
-	 *            The type to map to.
-	 * @param supplier
-	 *            The {@link Supplier} that has to provide a non-null value; might
-	 *            <b>not</b> be null.
-	 * @param function
-	 *            The {@link Function} to call if the {@link Supplier} provides a
-	 *            non-null value; might <b>not</b> be null.
-	 * @return The mapped value, might be null
-	 */
-	public static <T, R> R map(Supplier<T> supplier, Function<T, R> function) {
-		return map(supplier.get(), function);
-	}
-
-	/**
-	 * Maps using the given {@link Function} if and only if the given
-	 * {@link Supplier} provides a non-null value.
-	 * 
-	 * @param <T>
-	 *            The type of object to map.
-	 * @param <R>
-	 *            The type to map to.
-	 * @param supplier
-	 *            The {@link Supplier} that has to provide a non-null value; might
-	 *            <b>not</b> be null.
-	 * @param defaultValue
-	 *            The default value to call the {@link Function} with if the value
-	 *            provided by the {@link Supplier} is null; might be null although
-	 *            in this case the {@link Function} is also not called.
-	 * @param function
-	 *            The {@link Function} to call if the {@link Supplier} provides a
-	 *            non-null value; might <b>not</b> be null.
-	 * @return The mapped value, might be null
-	 */
-	public static <T, R> R map(Supplier<T> supplier, T defaultValue, Function<T, R> function) {
-		return map(supplier.get(), defaultValue, function);
 	}
 }
