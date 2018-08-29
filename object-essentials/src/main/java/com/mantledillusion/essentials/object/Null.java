@@ -188,7 +188,7 @@ public class Null {
 	 * @param <R>
 	 *            The type to map to.
 	 * @param value
-	 *            The value that has to be null for the {@link Consumer} to be
+	 *            The value that has to be not null for the {@link Function} to be
 	 *            called; might be null.
 	 * @param function
 	 *            The {@link Function} to call if the given value is not null; might
