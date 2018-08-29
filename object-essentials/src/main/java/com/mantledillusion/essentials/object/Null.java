@@ -219,16 +219,42 @@ public class Null {
 	 * @return The mapped value, might be null
 	 */
 	public static <T, R> R map(T value, T defaultValue, Function<T, R> function) {
+		return map(value, defaultValue, function, null);
+	}
+
+	/**
+	 * Maps using the given {@link Function} if and only if the value is not null.
+	 * 
+	 * @param <T>
+	 *            The type of object to map.
+	 * @param <R>
+	 *            The type to map to.
+	 * @param value
+	 *            The value that has to be null for the {@link Function} to be
+	 *            called; might be null.
+	 * @param defaultValue
+	 *            The default value to call the {@link Function} with if the given
+	 *            value is null; might be null although in this case the
+	 *            {@link Function} is also not called.
+	 * @param function
+	 *            The {@link Function} to call if the given value is not null; might
+	 *            <b>not</b> be null.
+	 * @param defaultResult
+	 *            The default result to return if either the value for the function
+	 *            is null or the function returns null; might be null.
+	 * @return The mapped value, might be null
+	 */
+	public static <T, R> R map(T value, T defaultValue, Function<T, R> function, R defaultResult) {
 		if (is(function)) {
 			throw new IllegalArgumentException("Cannot map using a null function.");
 		}
 
 		if (value != null) {
-			return function.apply(value);
+			return def(function.apply(value), defaultResult);
 		} else if (defaultValue != null) {
-			return function.apply(defaultValue);
+			return def(function.apply(defaultValue), defaultResult);
 		} else {
-			return null;
+			return defaultResult;
 		}
 	}
 }
