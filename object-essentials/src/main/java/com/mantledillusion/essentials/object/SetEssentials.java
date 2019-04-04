@@ -36,7 +36,7 @@ public class SetEssentials {
      * @param moreItems More additional items; might be null or contain nulls.
      * @return A new, non immutable {@link Set} containing all items, never null
      */
-    public static <T> Set<T> asList(T[] itemArray, T item, T... moreItems) {
+    public static <T> Set<T> toList(T[] itemArray, T item, T... moreItems) {
         HashSet<T> set = new HashSet<>();
         CollectionEssentials.add(set, itemArray, item, moreItems);
         return set;
@@ -51,7 +51,7 @@ public class SetEssentials {
      * @param itemArrays The item arrays; might be null or contain nulls.
      * @return A new, non immutable {@link Set} containing all items, never null
      */
-    public static <T> Set<T> asList(T[]... itemArrays) {
+    public static <T> Set<T> toList(T[]... itemArrays) {
         HashSet<T> set = new HashSet<>();
         CollectionEssentials.add(set, itemArrays);
         return set;
