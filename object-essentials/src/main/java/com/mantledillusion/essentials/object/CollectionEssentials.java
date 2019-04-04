@@ -19,7 +19,8 @@ public class CollectionEssentials {
      * @param itemArray The item array; might be null or contain nulls.
      * @param collection The {@link Collection} to at the items to; might <b>not</b> be null.
      */
-    public static <T> void add(Collection<T> collection, T... itemArray) {
+    @SafeVarargs
+	public static <T> void add(Collection<T> collection, T... itemArray) {
         if (Null.is(collection)) {
             throw new IllegalArgumentException("Cannot add items to a null collection");
         }
@@ -39,6 +40,7 @@ public class CollectionEssentials {
      * @param moreItems More additional items; might be null or contain nulls.
      * @param collection The {@link Collection} to at the items to; might <b>not</b> be null.
      */
+    @SafeVarargs
     public static <T> void add(Collection<T> collection, T[] itemArray, T item, T... moreItems) {
         if (Null.is(collection)) {
             throw new IllegalArgumentException("Cannot add items to a null collection");
@@ -61,6 +63,7 @@ public class CollectionEssentials {
      * @param itemArrays The item arrays; might be null or contain nulls.
      * @param collection The {@link Collection} to at the items to; might <b>not</b> be null.
      */
+    @SafeVarargs
     public static <T> void add(Collection<T> collection, T[]... itemArrays) {
         if (Null.is(collection)) {
             throw new IllegalArgumentException("Cannot add items to a null collection");

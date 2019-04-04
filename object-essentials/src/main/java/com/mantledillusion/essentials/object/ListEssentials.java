@@ -21,6 +21,7 @@ public class ListEssentials {
      * @param itemArray The item array; might be null or contain nulls.
      * @return A new, non immutable {@link List} containing all items, never null
      */
+    @SafeVarargs
     public static <T> List<T> asList(T... itemArray) {
         ArrayList<T> list = new ArrayList<>();
         CollectionEssentials.add(list, itemArray);
@@ -40,6 +41,7 @@ public class ListEssentials {
      * @param moreItems More additional items; might be null or contain nulls.
      * @return A new, non immutable {@link List} containing all items, never null
      */
+    @SafeVarargs
     public static <T> List<T> toList(T[] itemArray, T item, T... moreItems) {
         ArrayList<T> list = new ArrayList<>();
         CollectionEssentials.add(list, itemArray, item, moreItems);
@@ -57,6 +59,7 @@ public class ListEssentials {
      * @param itemArrays The item arrays; might be null or contain nulls.
      * @return A new, non immutable {@link List} containing all items, never null
      */
+    @SafeVarargs
     public static <T> List<T> toList(T[]... itemArrays) {
         ArrayList<T> list = new ArrayList<>();
         CollectionEssentials.add(list, itemArrays);
