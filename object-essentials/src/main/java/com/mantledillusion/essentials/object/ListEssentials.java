@@ -1,11 +1,10 @@
 package com.mantledillusion.essentials.object;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
- * Static utility that offers some specialized methods about {@link java.util.List}.
+ * Static utility that offers some specialized methods about {@link List}s.
  */
 public class ListEssentials {
 
@@ -24,9 +23,7 @@ public class ListEssentials {
      */
     public static <T> List<T> asList(T... itemArray) {
         ArrayList<T> list = new ArrayList<>();
-        if (Null.isNot(itemArray)) {
-            list.addAll(Arrays.asList(itemArray));
-        }
+        CollectionEssentials.add(list, itemArray);
         return list;
     }
 
@@ -45,13 +42,7 @@ public class ListEssentials {
      */
     public static <T> List<T> asList(T[] itemArray, T item, T... moreItems) {
         ArrayList<T> list = new ArrayList<>();
-        if (Null.isNot(itemArray)) {
-            list.addAll(Arrays.asList(itemArray));
-        }
-        list.add(item);
-        if (Null.isNot(moreItems)) {
-            list.addAll(Arrays.asList(moreItems));
-        }
+        CollectionEssentials.add(list, itemArray, item, moreItems);
         return list;
     }
 
@@ -68,13 +59,7 @@ public class ListEssentials {
      */
     public static <T> List<T> asList(T[]... itemArrays) {
         ArrayList<T> list = new ArrayList<>();
-        if (Null.isNot(itemArrays)) {
-            for (T[] array: itemArrays) {
-                if (Null.isNot(array)) {
-                    list.addAll(Arrays.asList(array));
-                }
-            }
-        }
+        CollectionEssentials.add(list, itemArrays);
         return list;
     }
 }
