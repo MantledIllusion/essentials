@@ -120,8 +120,13 @@ public final class StringEssentials {
 			if (begin == -1) {
 				int until = end == -1 ? part.length() : end;
 				partAppender.append(part.substring(0, until));
-				part = part.substring(until);
-				break;
+				if (part.length() == until) {
+					mainAppender.append(partAppender.toString());
+					return "";
+				} else {
+					part = part.substring(until);
+					break;
+				}
 			} else {
 				if (end == -1) {
 					throw new IllegalArgumentException(
@@ -145,11 +150,7 @@ public final class StringEssentials {
 
 		String replaceable = partAppender.toString();
 		String replaced = Objects.toString(replacementProvider.apply(replaceable));
-		if (replaceable.equals(replaced)) {
-			mainAppender.append(replaced);
-		} else {
-			deepReplace(replaced, mainAppender, replacementProvider, replacementPrefix, replacementPostfix);
-		}
+		deepReplace(replaced, mainAppender, replacementProvider, replacementPrefix, replacementPostfix);
 
 		return part;
 	}
