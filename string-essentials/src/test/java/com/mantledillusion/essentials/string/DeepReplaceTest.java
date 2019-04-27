@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class DeepReplaceTest {
 
-	private static class ReplaceRecorder implements Function<String, Object> {
+	private static class ReplaceRecorder implements Function<String, Object>, Predicate<String> {
 		
 		private final Map<String, Object> replacements = new HashMap<>();
 		private final List<String> requestedKeys = new ArrayList<>();
@@ -23,6 +24,11 @@ public class DeepReplaceTest {
 			this.requestedKeys.add(key);
 			return this.replacements.get(key);
 		}
+
+		@Override
+		public boolean test(String key) {
+			return this.replacements.containsKey(key);
+		}
 		
 		public ReplaceRecorder provide(String key, Object value) {
 			this.replacements.put(key, value);
@@ -30,7 +36,7 @@ public class DeepReplaceTest {
 		}
 		
 		public ReplaceRecorder test(String template, String expected) {
-			assertEquals(expected, StringEssentials.deepReplace(template, this));
+			assertEquals(expected, StringEssentials.deepReplace(template, this, this));
 			return this;
 		}
 		
@@ -88,5 +94,20 @@ public class DeepReplaceTest {
 			.provide("adjectives.hp.RHF", "Red Head Fan")
 			.test("Harry '${adjectives.${character.initials}.${adjective.identifier}}' Potter", "Harry 'Red Head Fan' Potter")
 			.withRequested("character.initials", "adjective.identifier", "adjectives.hp.RHF");
+	}
+	
+	@Test
+	public void testDefaultReplace() {
+		new ReplaceRecorder()
+			.test("There is no ${adjective:effing} key", "There is no effing key")
+			.withRequested();
+	}
+	
+	@Test
+	public void testUnrequiredDefaultReplace() {
+		new ReplaceRecorder()
+			.provide("adjective", "awesome")
+			.test("Actually there is an ${adjective:effing} key", "Actually there is an awesome key")
+			.withRequested("adjective");
 	}
 }
