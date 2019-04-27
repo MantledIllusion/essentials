@@ -4,7 +4,7 @@
 
 	<groupId>com.mantledillusion.essentials</groupId>
 	<artifactId>essentials-parent</artifactId>
-	<version>1.4.0-SNAPSHOT</version>
+	<version>1.5.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>Mantled Illusion Essentials Parent Project</name>
