@@ -144,7 +144,7 @@ public final class StringEssentials {
 
 		StringBuilder sb = new StringBuilder();
 		if (deepReplace(template != null ? template : "", sb, replacementProvider, replacementTester, 
-				replacementPrefix, replacementPostfix, defaultDivider).isEmpty()) {
+				replacementPrefix, replacementPostfix, defaultDivider, 0).isEmpty()) {
 			return sb.toString();
 		}
 		throw new IllegalArgumentException("Invalid prefix/postfix use in the template or one of its replacements");
@@ -152,7 +152,7 @@ public final class StringEssentials {
 
 	private static String deepReplace(String part, StringBuilder mainAppender,
 			Function<String, Object> replacementProvider, Predicate<String> replacementTester,
-			String replacementPrefix, String replacementPostfix, String defaultDivider) {
+			String replacementPrefix, String replacementPostfix, String defaultDivider, int depth) {
 		StringBuilder partAppender = new StringBuilder();
 
 		int begin;
@@ -162,7 +162,7 @@ public final class StringEssentials {
 			end = part.indexOf(replacementPostfix);
 
 			if (begin == -1) {
-				int until = end == -1 ? part.length() : end;
+				int until = end == -1 || depth == 0 ? part.length() : end;
 				partAppender.append(part.substring(0, until));
 				if (part.length() == until) {
 					mainAppender.append(partAppender.toString());
@@ -179,7 +179,7 @@ public final class StringEssentials {
 					partAppender.append(part.substring(0, begin));
 					part = deepReplace(part.substring(begin + replacementPrefix.length()), partAppender,
 							replacementProvider, replacementTester, 
-							replacementPrefix, replacementPostfix, defaultDivider);
+							replacementPrefix, replacementPostfix, defaultDivider, depth+1);
 					if (part.isEmpty()) {
 						throw new IllegalArgumentException(
 								"Invalid prefix/postfix use in the template or one of its replacements");
@@ -209,7 +209,7 @@ public final class StringEssentials {
 		}
 		
 		deepReplace(replaced, mainAppender, replacementProvider, replacementTester, 
-				replacementPrefix, replacementPostfix, defaultDivider);
+				replacementPrefix, replacementPostfix, defaultDivider, depth);
 
 		return part;
 	}

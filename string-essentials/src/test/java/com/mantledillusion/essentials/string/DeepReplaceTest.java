@@ -110,4 +110,11 @@ public class DeepReplaceTest {
 			.test("Actually there is an ${adjective:effing} key", "Actually there is an awesome key")
 			.withRequested("adjective");
 	}
+
+	@Test
+	public void testIgnorePostfixOnly() {
+		new ReplaceRecorder()
+				.test("ignoreMe!}", "ignoreMe!}")
+				.withRequested();
+	}
 }
