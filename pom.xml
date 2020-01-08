@@ -39,6 +39,7 @@
 
 	<modules>
 		<module>concurrency-essentials</module>
+		<module>json-patch-essentials</module>
 		<module>object-essentials</module>
 		<module>string-essentials</module>
 		<module>reflection-essentials</module>
