@@ -1,6 +1,6 @@
 package com.mantledillusion.essentials.json.patch;
 
-import com.flipkart.zjsonpatch.JsonPatchApplicationException;
+import com.mantledillusion.essentials.json.patch.ignore.NoPatchException;
 import com.mantledillusion.essentials.json.patch.model.Patch;
 import com.mantledillusion.essentials.json.patch.model.PatchOperation;
 import com.mantledillusion.essentials.json.patch.testclasses.RootPojo;
@@ -48,10 +48,8 @@ public class PatchIgnoreTest implements TestConstants {
         SubPojo addedUnpatchable = new SubPojo();
         addedUnpatchable.setId(ID_DEF);
 
-        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_UNPATCHABLE, asNode(addedUnpatchable)));
-
-        Assertions.assertNotNull(pojo.getUnpatchable());
-        Assertions.assertEquals(ID_ABC, pojo.getUnpatchable().getId());
+        Assertions.assertThrows(NoPatchException.class,
+                () -> PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_UNPATCHABLE, asNode(addedUnpatchable))));
     }
 
     @Test
@@ -59,7 +57,7 @@ public class PatchIgnoreTest implements TestConstants {
         RootPojo pojo = new RootPojo();
         pojo.setUnpatchable(new SubPojo());
 
-        Assertions.assertThrows(JsonPatchApplicationException.class,
+        Assertions.assertThrows(NoPatchException.class,
                 () -> PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_UNPATCHABLE_ID, asNode(ID_ABC))));
     }
 }

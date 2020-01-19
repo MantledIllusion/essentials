@@ -9,12 +9,16 @@ import com.flipkart.zjsonpatch.JsonPatch;
 import com.flipkart.zjsonpatch.JsonPatchApplicationException;
 import com.mantledillusion.essentials.json.patch.ignore.PatchIgnoreIntrospector;
 import com.mantledillusion.essentials.json.patch.ignore.NoPatch;
+import com.mantledillusion.essentials.json.patch.ignore.NoPatchException;
 import com.mantledillusion.essentials.json.patch.model.Patch;
+import javafx.util.Pair;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Static util that is able to {@link #take(Object)}/{@link #apply(Object, List)} RFC 6902 compliant JSON patches
@@ -159,14 +163,21 @@ public class PatchUtil {
      * if a field is tried to be patched which annotated with @{@link NoPatch}.
      */
     public static <T> T apply(T target, List<Patch> operations) throws JsonPatchApplicationException {
-        T targetWithoutIngnored = apply(target, Collections.emptyList(), IGNORING_MAPPER);
-        List<Patch> restoringOperations = getPatchOperations(
-                asStandardNode(targetWithoutIngnored),
-                asStandardNode(target),
-                STANDARD_MAPPER);
+        T targetWithoutIgnored = apply(target, Collections.emptyList(), IGNORING_MAPPER);
+        List<Patch> illegalPatches = getPatchOperations(
+                asStandardNode(targetWithoutIgnored), asStandardNode(target), STANDARD_MAPPER).
+                parallelStream().
+                map(Patch::getPath).
+                flatMap(path -> operations.parallelStream().map(patch -> new Pair<>(path, patch))).
+                filter(pair -> pair.getValue().getPath().startsWith(pair.getKey())).
+                map(Pair::getValue).
+                collect(Collectors.toList());
 
-        T patched = apply(target, operations, IGNORING_MAPPER);
-        return apply(patched, restoringOperations, STANDARD_MAPPER);
+        if (!illegalPatches.isEmpty()) {
+            throw new NoPatchException(illegalPatches);
+        } else {
+            return apply(target, operations, STANDARD_MAPPER);
+        }
     }
 
     private static <T> T apply(T target, List<Patch> operations, ObjectMapper mapper) throws JsonPatchApplicationException {
