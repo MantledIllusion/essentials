@@ -1,6 +1,5 @@
 package com.mantledillusion.essentials.json.patch.ignore;
 
-import com.mantledillusion.essentials.json.patch.PatchRecorder;
 import com.mantledillusion.essentials.json.patch.PatchUtil;
 import com.mantledillusion.essentials.json.patch.model.Patch;
 

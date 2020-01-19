@@ -24,7 +24,7 @@ public class ApplyPatchTest implements TestConstants {
         SubPojo first = new SubPojo();
         first.setId(ID_ABC);
 
-        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_FIRST, toNode(first)));
+        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_FIRST, asNode(first)));
 
         Assertions.assertEquals(first, pojo.getFirst());
     }
@@ -35,7 +35,7 @@ public class ApplyPatchTest implements TestConstants {
         pojo.setFirst(new SubPojo());
         pojo.getFirst().setId(ID_ABC);
 
-        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.replace, PATH_FIRST_ID, toNode(ID_DEF)));
+        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.replace, PATH_FIRST_ID, asNode(ID_DEF)));
 
         Assertions.assertEquals(ID_DEF, pojo.getFirst().getId());
     }
@@ -71,7 +71,7 @@ public class ApplyPatchTest implements TestConstants {
         ListedPojo listed = new ListedPojo();
         listed.setId(ID_ABC);
 
-        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_LISTED+"/0", toNode(listed)));
+        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_LISTED+"/0", asNode(listed)));
 
         Assertions.assertEquals(1, pojo.getListed().size());
         Assertions.assertEquals(listed, pojo.getListed().get(0));

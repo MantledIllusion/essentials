@@ -16,7 +16,7 @@ public class PatchIgnoreTest implements TestConstants {
     public void testNoPatchFieldRecording() {
         RootPojo pojo = new RootPojo();
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         pojo.setUnpatchable(new SubPojo());
 
@@ -29,7 +29,7 @@ public class PatchIgnoreTest implements TestConstants {
         RootPojo pojo = new RootPojo();
         pojo.setUnpatchable(new SubPojo());
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         pojo.getUnpatchable().setId(ID_ABC);
 
@@ -43,10 +43,15 @@ public class PatchIgnoreTest implements TestConstants {
 
         SubPojo unpatchable = new SubPojo();
         unpatchable.setId(ID_ABC);
+        pojo.setUnpatchable(unpatchable);
 
-        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_UNPATCHABLE, toNode(unpatchable)));
+        SubPojo addedUnpatchable = new SubPojo();
+        addedUnpatchable.setId(ID_DEF);
 
-        Assertions.assertNull(pojo.getUnpatchable());
+        pojo = PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_UNPATCHABLE, asNode(addedUnpatchable)));
+
+        Assertions.assertNotNull(pojo.getUnpatchable());
+        Assertions.assertEquals(ID_ABC, pojo.getUnpatchable().getId());
     }
 
     @Test
@@ -55,6 +60,6 @@ public class PatchIgnoreTest implements TestConstants {
         pojo.setUnpatchable(new SubPojo());
 
         Assertions.assertThrows(JsonPatchApplicationException.class,
-                () -> PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_UNPATCHABLE_ID, toNode(ID_ABC))));
+                () -> PatchUtil.apply(pojo, new Patch(PatchOperation.add, PATH_UNPATCHABLE_ID, asNode(ID_ABC))));
     }
 }

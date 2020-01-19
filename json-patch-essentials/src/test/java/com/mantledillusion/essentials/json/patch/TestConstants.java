@@ -13,7 +13,7 @@ public interface TestConstants {
     String PATH_UNPATCHABLE_ID = "/unpatchable/id";
     String PATH_LISTED = "/listed";
 
-    default JsonNode toNode(Object o) {
-        return PatchUtil.MAPPER.valueToTree(o);
+    default JsonNode asNode(Object o) {
+        return PatchUtil.asIgnoredNode(o);
     }
 }

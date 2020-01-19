@@ -15,14 +15,14 @@ public class RecordPatchTest implements TestConstants {
 
     @Test
     public void testRecordNull() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> PatchUtil.record(null));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> PatchUtil.take(null));
     }
 
     @Test
     public void testSetValue() {
         RootPojo pojo = new RootPojo();
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         SubPojo first = new SubPojo();
         pojo.setFirst(first);
@@ -30,7 +30,7 @@ public class RecordPatchTest implements TestConstants {
         List<Patch> ops = recorder.capture();
 
         check(ops,
-                new Patch(PatchOperation.add, PATH_FIRST, toNode(first)));
+                new Patch(PatchOperation.add, PATH_FIRST, asNode(first)));
     }
 
     @Test
@@ -39,14 +39,14 @@ public class RecordPatchTest implements TestConstants {
         pojo.setFirst(new SubPojo());
         pojo.getFirst().setId(ID_ABC);
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         pojo.getFirst().setId(ID_DEF);
 
         List<Patch> ops = recorder.capture();
 
         check(ops,
-                new Patch(PatchOperation.replace, PATH_FIRST_ID, toNode(ID_DEF)));
+                new Patch(PatchOperation.replace, PATH_FIRST_ID, asNode(ID_DEF)));
     }
 
     @Test
@@ -56,7 +56,7 @@ public class RecordPatchTest implements TestConstants {
         sub.setId(ID_ABC);
         pojo.setFirst(sub);
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         pojo.setFirst(null);
         pojo.setSecond(sub);
@@ -73,7 +73,7 @@ public class RecordPatchTest implements TestConstants {
         pojo.setFirst(new SubPojo());
         pojo.getFirst().setId(ID_ABC);
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         pojo.getFirst().setId(null);
 
@@ -87,7 +87,7 @@ public class RecordPatchTest implements TestConstants {
     public void testAddValue() {
         RootPojo pojo = new RootPojo();
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         ListedPojo listed = new ListedPojo();
         listed.setId(ID_ABC);
@@ -96,7 +96,7 @@ public class RecordPatchTest implements TestConstants {
         List<Patch> ops = recorder.capture();
 
         check(ops,
-                new Patch(PatchOperation.add, PATH_LISTED+"/0", toNode(listed)));
+                new Patch(PatchOperation.add, PATH_LISTED+"/0", asNode(listed)));
     }
 
     @Test
@@ -106,7 +106,7 @@ public class RecordPatchTest implements TestConstants {
         listed.setId(ID_ABC);
         pojo.getListed().add(listed);
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         pojo.getListed().remove(0);
 
@@ -123,7 +123,7 @@ public class RecordPatchTest implements TestConstants {
         listed.setId(ID_ABC);
         pojo.getListed().add(listed);
 
-        PatchRecorder recorder = PatchUtil.record(pojo);
+        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
 
         pojo.getListed().add(listed);
 
