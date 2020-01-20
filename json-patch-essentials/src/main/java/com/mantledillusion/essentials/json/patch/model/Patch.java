@@ -46,6 +46,9 @@ public class Patch {
 
     /**
      * Advanced Constructor.
+     *
+     * @param op The operation type, might <b>not</b> be null.
+     * @param path The node path; might <b>not</b> be null.
      */
     public Patch(PatchOperation op, String path) {
         this.op = op;
@@ -54,6 +57,10 @@ public class Patch {
 
     /**
      * Advanced Constructor.
+     *
+     * @param op The operation type, might <b>not</b> be null.
+     * @param path The node path; might <b>not</b> be null.
+     * @param value The value; might be null.
      */
     public Patch(PatchOperation op, String path, JsonNode value) {
         this.op = op;
@@ -63,6 +70,10 @@ public class Patch {
 
     /**
      * Advanced Constructor.
+     *
+     * @param op The operation type, might <b>not</b> be null.
+     * @param from The from node path; might be null.
+     * @param path The node path; might <b>not</b> be null.
      */
     public Patch(PatchOperation op, String from, String path) {
         this.op = op;
@@ -81,7 +92,7 @@ public class Patch {
      * - {@link PatchOperation#move}<br>
      * - {@link PatchOperation#test}<br>
      *
-     * @return The operation type, might <b>not</b> be null.
+     * @return The operation type, never null
      */
     public PatchOperation getOp() {
         return op;
@@ -97,12 +108,14 @@ public class Patch {
     }
 
     /**
-     * Returns the path to another JSON node, only required for {@link PatchOperation#copy} /
-     * {@link PatchOperation#move} operations.
+     * Returns the path to another JSON node, only required for...<br>
+     * - {@link PatchOperation#copy}<br>
+     * - {@link PatchOperation#move}<br>
+     * ...operations.
      * <p>
      * Begins with a slash and adds numeric sections for list indices, for example: '/subobject/list/2/field'
      *
-     * @return The from node path; might be null.
+     * @return The from node path, might be null
      */
     public String getFrom() {
         return from;
@@ -118,11 +131,11 @@ public class Patch {
     }
 
     /**
-     * The path to the JSON node to patch.
+     * Returns the path to the JSON node to patch.
      * <p>
      * Begins with a slash and adds numeric sections for list indices, for example: '/subobject/list/2/field'
      *
-     * @return The node path; might <b>not</b> be null.
+     * @return The node path, never null
      */
     public String getPath() {
         return path;
@@ -138,18 +151,26 @@ public class Patch {
     }
 
     /**
-     * The value for the operation, only required for {@link PatchOperation#add} / {@link PatchOperation#replace} /
-     * {@link PatchOperation#test} operations.
+     * Returns the value for the operation, only required for...<br>
+     * - {@link PatchOperation#add}<br>
+     * - {@link PatchOperation#replace}<br>
+     * - {@link PatchOperation#test}<br>
+     * ...operations.
      * <p>
      * A value can be everything that might be suitable for the node that is patched at the given path; a string, a
      * number or even a whole JSON object.
      *
-     * @return The value; might be null.
+     * @return The value, might be null
      */
     public JsonNode getValue() {
         return value;
     }
 
+    /**
+     * Returns the value for the operation.
+     *
+     * @param value The value; might be null.
+     */
     public void setValue(JsonNode value) {
         this.value = value;
     }
