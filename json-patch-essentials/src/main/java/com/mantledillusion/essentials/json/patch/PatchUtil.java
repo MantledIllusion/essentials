@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.flipkart.zjsonpatch.JsonPatch;
-import com.flipkart.zjsonpatch.JsonPatchApplicationException;
 import com.mantledillusion.essentials.json.patch.ignore.PatchIgnoreIntrospector;
 import com.mantledillusion.essentials.json.patch.ignore.NoPatch;
 import com.mantledillusion.essentials.json.patch.ignore.NoPatchException;
@@ -17,7 +16,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -143,10 +141,10 @@ public class PatchUtil {
      *                   unchanged {@link Object} to be returned.
      * @return A changed version of the given target {@link Object} where the given {@link List} of {@link Patch}es
      * have been applied, never null
-     * @throws JsonPatchApplicationException If at least one of the {@link Patch}es is not applicable, for example
-     * if a field is tried to be patched which annotated with @{@link NoPatch}.
+     * @throws NoPatchException If at least one of the {@link Patch}es is not applicable, for example if a field is
+     * tried to be patched which annotated with @{@link NoPatch}.
      */
-    public static <T> T apply(T target, Patch... operations) throws JsonPatchApplicationException {
+    public static <T> T apply(T target, Patch... operations) throws NoPatchException {
         return apply(target, Arrays.asList(operations));
     }
 
@@ -159,10 +157,10 @@ public class PatchUtil {
      *                   unchanged {@link Object} to be returned.
      * @return A changed version of the given target {@link Object} where the given {@link List} of {@link Patch}es
      * have been applied, never null
-     * @throws JsonPatchApplicationException If at least one of the {@link Patch}es is not applicable, for example
-     * if a field is tried to be patched which annotated with @{@link NoPatch}.
+     * @throws NoPatchException If at least one of the {@link Patch}es is not applicable, for example if a field is
+     * tried to be patched which annotated with @{@link NoPatch}.
      */
-    public static <T> T apply(T target, List<Patch> operations) throws JsonPatchApplicationException {
+    public static <T> T apply(T target, List<Patch> operations) throws NoPatchException {
         T targetWithoutIgnored = apply(target, Collections.emptyList(), IGNORING_MAPPER);
         List<Patch> illegalPatches = getPatchOperations(
                 asStandardNode(targetWithoutIgnored), asStandardNode(target), STANDARD_MAPPER).
@@ -180,7 +178,7 @@ public class PatchUtil {
         }
     }
 
-    private static <T> T apply(T target, List<Patch> operations, ObjectMapper mapper) throws JsonPatchApplicationException {
+    private static <T> T apply(T target, List<Patch> operations, ObjectMapper mapper) {
         if (target == null) {
             throw new IllegalArgumentException("Cannot apply changes on a null target object");
         }
