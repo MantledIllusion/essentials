@@ -192,6 +192,6 @@ public class Patch {
 
     @Override
     public String toString() {
-        return "{op:" + this.op + ", path:" + path + (this.value == null ? "" : ", value: '" + this.value + "'");
+        return "{op:" + this.op + ", path:" + path + (this.value == null ? "" : ", value: '" + this.value + "'}");
     }
 }

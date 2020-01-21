@@ -16,11 +16,11 @@ public class PatchIgnoreTest implements TestConstants {
     public void testNoPatchFieldRecording() {
         RootPojo pojo = new RootPojo();
 
-        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
+        PatchUtil.Snapshot snapshot = PatchUtil.take(pojo);
 
         pojo.setUnpatchable(new SubPojo());
 
-        List<Patch> ops = recorder.capture();
+        List<Patch> ops = snapshot.capture();
         Assertions.assertTrue(ops.isEmpty());
     }
 
@@ -29,11 +29,11 @@ public class PatchIgnoreTest implements TestConstants {
         RootPojo pojo = new RootPojo();
         pojo.setUnpatchable(new SubPojo());
 
-        PatchUtil.Snapshot recorder = PatchUtil.take(pojo);
+        PatchUtil.Snapshot snapshot = PatchUtil.take(pojo);
 
         pojo.getUnpatchable().setId(ID_ABC);
 
-        List<Patch> ops = recorder.capture();
+        List<Patch> ops = snapshot.capture();
         Assertions.assertTrue(ops.isEmpty());
     }
 
