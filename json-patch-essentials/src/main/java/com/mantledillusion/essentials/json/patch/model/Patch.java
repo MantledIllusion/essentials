@@ -180,18 +180,23 @@ public class Patch {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Patch patch = (Patch) o;
-        return Objects.equals(op, patch.op) &&
-                Objects.equals(path, patch.path) &&
-                Objects.equals(value, patch.value);
+        return Objects.equals(this.op, patch.op) &&
+                Objects.equals(this.from, patch.from) &&
+                Objects.equals(this.path, patch.path) &&
+                Objects.equals(this.value, patch.value);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(op, path, value);
+        return Objects.hash(op, from, path, value);
     }
 
     @Override
     public String toString() {
-        return "{op:" + this.op + ", path:" + path + (this.value == null ? "" : ", value: '" + this.value + "'}");
+        return "{ \"op\": \"" + this.op + "\"" +
+                (this.from == null ? "" : ", \"from\": \"" + this.from + "\"") +
+                ", \"path\": \"" + path + "\"" +
+                (this.value == null ? "" : ", \"value\": " + this.value) +
+                " }";
     }
 }
