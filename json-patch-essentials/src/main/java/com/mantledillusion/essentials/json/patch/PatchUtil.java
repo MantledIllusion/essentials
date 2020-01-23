@@ -10,7 +10,6 @@ import com.mantledillusion.essentials.json.patch.ignore.PatchIgnoreIntrospector;
 import com.mantledillusion.essentials.json.patch.ignore.NoPatch;
 import com.mantledillusion.essentials.json.patch.ignore.NoPatchException;
 import com.mantledillusion.essentials.json.patch.model.Patch;
-import javafx.util.Pair;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -166,9 +165,7 @@ public class PatchUtil {
                 asStandardNode(targetWithoutIgnored), asStandardNode(target), STANDARD_MAPPER).
                 parallelStream().
                 map(Patch::getPath).
-                flatMap(path -> operations.parallelStream().map(patch -> new Pair<>(path, patch))).
-                filter(pair -> pair.getValue().getPath().startsWith(pair.getKey())).
-                map(Pair::getValue).
+                flatMap(path -> operations.parallelStream().filter(patch -> patch.getPath().startsWith(path))).
                 collect(Collectors.toList());
 
         if (!illegalPatches.isEmpty()) {
