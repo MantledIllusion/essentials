@@ -8,7 +8,7 @@ public class ListedPojo {
 
     private String id;
     @NoPatch
-    private String lol;
+    private String unpatchable;
 
     public String getId() {
         return id;
@@ -18,12 +18,12 @@ public class ListedPojo {
         this.id = id;
     }
 
-    public String getLol() {
-        return lol;
+    public String getUnpatchable() {
+        return unpatchable;
     }
 
-    public void setLol(String lol) {
-        this.lol = lol;
+    public void setUnpatchable(String unpatchable) {
+        this.unpatchable = unpatchable;
     }
 
     @Override
