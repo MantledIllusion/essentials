@@ -12,6 +12,7 @@ import com.mantledillusion.essentials.json.patch.ignore.NoPatchException;
 import com.mantledillusion.essentials.json.patch.model.Patch;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -74,7 +75,25 @@ public class PatchUtil {
          * observed {@link Object}, never null but might be empty
          */
         public List<Patch> peek() {
-            return getPatchOperations(false);
+            return getPatchOperations(Patch.class, false);
+        }
+
+        /**
+         * Returns a {@link List} of {@link Patch}es of what has changed on the observed {@link Object}.
+         * <p>
+         * Leaves this {@link Snapshot}'s perception of the {@link Object}'s pre patch state unchanged. As a result,
+         * subsequent calls to either {@link #peek()} or {@link #capture()} without further changes to the
+         * {@link Object} will return the same result.
+         *
+         * @param patchType The type of patch to map to; might <b>not</b> be null.
+         * @return A {@link List} of {@link Patch}es that describe the changes performed on the {@link Snapshot}'s
+         * observed {@link Object}, never null but might be empty
+         */
+        public <P> List<P> peek(Class<P> patchType) {
+            if (patchType == null) {
+                throw new IllegalArgumentException("Cannot create patches based on a null patch type");
+            }
+            return getPatchOperations(patchType, false);
         }
 
         /**
@@ -88,13 +107,31 @@ public class PatchUtil {
          * observed {@link Object}, never null but might be empty
          */
         public List<Patch> capture() {
-            return getPatchOperations(true);
+            return getPatchOperations(Patch.class, true);
         }
 
-        private synchronized List<Patch> getPatchOperations(boolean keepCurrentStateAsPrePatch) {
+        /**
+         * Returns a {@link List} of {@link Patch}es of what has changed on the observed {@link Object}.
+         * <p>
+         * Changes this {@link Snapshot}'s perception of the {@link Object}'s pre patch state to its current state. As
+         * a result, subsequent calls to either {@link #peek()} or {@link #capture()} without further changes will
+         * return no changes.
+         *
+         * @param patchType The type of patch to map to; might <b>not</b> be null.
+         * @return A {@link List} of {@link Patch}es that describe the changes performed on the {@link Snapshot}'s
+         * observed {@link Object}, never null but might be empty
+         */
+        public <P> List<P> capture(Class<P> patchType) {
+            if (patchType == null) {
+                throw new IllegalArgumentException("Cannot create patches based on a null patch type");
+            }
+            return getPatchOperations(patchType, true);
+        }
+
+        private synchronized <P> List<P> getPatchOperations(Class<P> patchClass, boolean keepCurrentStateAsPrePatch) {
             JsonNode postPatch = asIgnoredNode(this.patchable);
 
-            List<Patch> patches = PatchUtil.getPatchOperations(this.prePatch, postPatch, IGNORING_MAPPER);
+            List<P> patches = PatchUtil.getPatchOperations(this.prePatch, postPatch, IGNORING_MAPPER, patchClass);
             if (keepCurrentStateAsPrePatch) {
                 this.prePatch = postPatch;
             }
@@ -162,7 +199,7 @@ public class PatchUtil {
     public static <T> T apply(T target, List<Patch> operations) throws NoPatchException {
         T targetWithoutIgnored = apply(target, Collections.emptyList(), IGNORING_MAPPER);
         List<Patch> illegalPatches = getPatchOperations(
-                asStandardNode(targetWithoutIgnored), asStandardNode(target), STANDARD_MAPPER).
+                asStandardNode(targetWithoutIgnored), asStandardNode(target), STANDARD_MAPPER, Patch.class).
                 parallelStream().
                 map(Patch::getPath).
                 flatMap(path -> operations.parallelStream().filter(patch -> patch.getPath().startsWith(path))).
@@ -200,11 +237,11 @@ public class PatchUtil {
         }
     }
 
-    private static <T> List<Patch> getPatchOperations(JsonNode prePatch, JsonNode postPatch, ObjectMapper mapper) {
+    private static <P> List<P> getPatchOperations(JsonNode prePatch, JsonNode postPatch, ObjectMapper mapper, Class<P> patchType) {
         try {
             JsonNode diff = JsonDiff.asJson(prePatch, postPatch);
             String jsonDiff = mapper.writeValueAsString(diff);
-            Patch[] ops = mapper.readValue(jsonDiff, Patch[].class);
+            P[] ops = mapper.readValue(jsonDiff, (Class<P[]>) Array.newInstance(patchType, 0).getClass());
             return Arrays.asList(ops);
         } catch (IOException e) {
             throw new RuntimeException("Unable to create patch ", e);
