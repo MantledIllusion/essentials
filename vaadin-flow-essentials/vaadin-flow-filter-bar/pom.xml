@@ -22,7 +22,7 @@
 		<dependency>
 			<groupId>com.mantledillusion.data</groupId>
 			<artifactId>collo</artifactId>
-			<version>1.0.0</version>
+			<version>1.1.0</version>
 		</dependency>
 
 		<!-- Vaadin Dependencies -->
