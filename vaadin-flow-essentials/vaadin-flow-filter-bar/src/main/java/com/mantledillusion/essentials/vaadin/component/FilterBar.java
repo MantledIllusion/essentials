@@ -168,7 +168,7 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
             }
         });
         partingSelect.addValueChangeListener(event -> {
-            boolean invalid = false;
+            boolean invalid = true;
             String invalidMsg = null;
             if (event.getValue() != null) {
                 invalid = !event.getValue().getParts().stream().
@@ -178,8 +178,10 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
                         map(part -> part.getInvalidLabel(event.getValue().getPart(part))).
                         findFirst().
                         orElse(null);
+                ok.setEnabled(!invalid);
+            } else {
+                ok.setEnabled(false);
             }
-            ok.setEnabled(!invalid);
             inputField.setInvalid(invalid);
             inputField.setErrorMessage(invalidMsg);
         });
