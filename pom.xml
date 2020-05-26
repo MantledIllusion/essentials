@@ -39,6 +39,7 @@
 
 	<modules>
 		<module>concurrency-essentials</module>
+		<module>expression-essentials</module>
 		<module>json-patch-essentials</module>
 		<module>object-essentials</module>
 		<module>string-essentials</module>
@@ -69,6 +70,11 @@
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.8.1</version>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
