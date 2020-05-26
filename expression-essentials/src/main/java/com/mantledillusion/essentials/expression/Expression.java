@@ -52,7 +52,7 @@ public class Expression<V> {
     // #################################################################################################################
 
     /**
-     * Creates a new {@link Expression} based on <code>this</code> one, that evaluates as: <code>this && other</code>
+     * Creates a new {@link Expression} based on <code>this</code> one, that evaluates as: <code>this &amp;&amp; other</code>
      *
      * @param other The other {@link Expression}; might <b>not</b> be null.
      * @return A new {@link Expression}, never null
@@ -105,6 +105,8 @@ public class Expression<V> {
      * - {@link Objects#toString(Object)} as a renderer<br>
      * - {@value #DEFAULT_START_DELIMITER} as the start delimiter<br>
      * - {@value #DEFAULT_END_DELIMITER} as the end delimiter<br>
+     *
+     * @return The {@link String} representation of this {@link Expression}, never null
      */
     @Override
     public String toString() {
@@ -117,6 +119,7 @@ public class Expression<V> {
      * - {@value #DEFAULT_END_DELIMITER} as the end delimiter<br>
      *
      * @param valueRenderer The renderer to use; might <b>not</b> be null.
+     * @return The {@link String} representation of this {@link Expression}, never null
      */
     public String toString(Function<V, String> valueRenderer) {
         return toString(valueRenderer, DEFAULT_START_DELIMITER, DEFAULT_END_DELIMITER, false);
@@ -126,8 +129,9 @@ public class Expression<V> {
      * Will render this {@link Expression} using:<br>
      * - {@link Objects#toString(Object)} as a renderer<br>
      *
-     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
-     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
+     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
+     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
+     * @return The {@link String} representation of this {@link Expression}, never null
      */
     public String toString(String startDelimiter, String endDelimiter) {
         return toString(Objects::toString, startDelimiter, endDelimiter, false);
@@ -137,8 +141,9 @@ public class Expression<V> {
      * Will render this {@link Expression}.
      *
      * @param valueRenderer The renderer to use; might <b>not</b> be null.
-     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
-     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
+     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
+     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
+     * @return The {@link String} representation of this {@link Expression}, never null
      */
     public String toString(Function<V, String> valueRenderer, String startDelimiter, String endDelimiter) {
         return toString(valueRenderer, startDelimiter, endDelimiter, false);
@@ -174,7 +179,7 @@ public class Expression<V> {
     }
 
     /**
-     *Creates a new && {@link Expression}.
+     *Creates a new &amp;&amp; {@link Expression}.
      *
      * @param <V> The value type.
      * @param values The instances to express and concatenate; might be null.
@@ -186,7 +191,7 @@ public class Expression<V> {
     }
 
     /**
-     *Creates a new && {@link Expression}.
+     *Creates a new &amp;&amp; {@link Expression}.
      *
      * @param <V> The value type.
      * @param values The instances to express and concatenate; might <b>not</b> be null.
@@ -197,7 +202,7 @@ public class Expression<V> {
     }
 
     /**
-     *Creates a new && {@link Expression}.
+     *Creates a new &amp;&amp; {@link Expression}.
      *
      * @param <V> The value type.
      * @param expressions The expressions to concatenate; might be null.
@@ -209,7 +214,7 @@ public class Expression<V> {
     }
 
     /**
-     *Creates a new && {@link Expression}.
+     *Creates a new &amp;&amp; {@link Expression}.
      *
      * @param <V> The value type.
      * @param expressions The expressions to concatenate; might <b>not</b> be null.
@@ -308,8 +313,8 @@ public class Expression<V> {
      * - no parser<br>
      *
      * @param expression The expression to parse; might <b>not</b> be null.
-     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
-     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
+     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
+     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
      * @return An {@link Expression}, never null
      */
     public static Expression<String> parse(String expression, String startDelimiter, String endDelimiter) {
@@ -321,6 +326,7 @@ public class Expression<V> {
      * - {@value #DEFAULT_START_DELIMITER} as the start delimiter<br>
      * - {@value #DEFAULT_END_DELIMITER} as the end delimiter<br>
      *
+     * @param <V> The value type.
      * @param expression The expression to parse; might <b>not</b> be null.
      * @param parser The parser to use; might <b>not</b> be null.
      * @return An {@link Expression}, never null
@@ -332,10 +338,11 @@ public class Expression<V> {
     /**
      * Parses the given {@link String} into an {@link Expression}.
      *
+     * @param <V> The value type.
      * @param expression The expression to parse; might <b>not</b> be null.
      * @param parser The parser to use; might <b>not</b> be null.
-     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
-     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters [\w()&|].
+     * @param startDelimiter The start delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
+     * @param endDelimiter The end delimiter to use; might <b>not</b> be null or of the characters <code>[\w()&amp;|]</code>.
      * @return An {@link Expression}, never null
      */
     public static <V> Expression<V> parse(String expression, Function<String, V> parser, String startDelimiter, String endDelimiter) {
