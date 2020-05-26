@@ -85,6 +85,7 @@ public class PatchUtil {
          * subsequent calls to either {@link #peek()} or {@link #capture()} without further changes to the
          * {@link Object} will return the same result.
          *
+         * @param <P> The patch type to use.
          * @param patchType The type of patch to map to; might <b>not</b> be null.
          * @return A {@link List} of {@link Patch}es that describe the changes performed on the {@link Snapshot}'s
          * observed {@link Object}, never null but might be empty
@@ -117,6 +118,7 @@ public class PatchUtil {
          * a result, subsequent calls to either {@link #peek()} or {@link #capture()} without further changes will
          * return no changes.
          *
+         * @param <P> The patch type to use.
          * @param patchType The type of patch to map to; might <b>not</b> be null.
          * @return A {@link List} of {@link Patch}es that describe the changes performed on the {@link Snapshot}'s
          * observed {@link Object}, never null but might be empty
