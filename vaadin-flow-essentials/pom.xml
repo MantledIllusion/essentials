@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>com.mantledillusion.essentials</groupId>
 		<artifactId>essentials-parent</artifactId>
-		<version>1.6.0</version>
+		<version>1.8.0</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	
@@ -18,7 +18,7 @@
 	<url>http://www.mantledillusion.com</url>
 
 	<properties>
-		<vaadin-flow.version>14.1.27</vaadin-flow.version>
+		<vaadin-flow.version>14.4.4</vaadin-flow.version>
 	</properties>
 
 	<dependencyManagement>
@@ -35,5 +35,6 @@
 
 	<modules>
 		<module>vaadin-flow-filter-bar</module>
+		<module>vaadin-flow-graph-pane</module>
 	</modules>
 </project>
