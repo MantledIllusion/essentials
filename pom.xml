@@ -40,6 +40,7 @@
 	<modules>
 		<module>concurrency-essentials</module>
 		<module>expression-essentials</module>
+		<module>graph-essentials</module>
 		<module>json-patch-essentials</module>
 		<module>object-essentials</module>
 		<module>string-essentials</module>
