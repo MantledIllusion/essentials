@@ -18,7 +18,7 @@
 	<url>http://www.mantledillusion.com</url>
 
 	<properties>
-		<vaadin-flow.version>14.4.4</vaadin-flow.version>
+		<vaadin-flow.version>14.5.3</vaadin-flow.version>
 	</properties>
 
 	<dependencyManagement>
