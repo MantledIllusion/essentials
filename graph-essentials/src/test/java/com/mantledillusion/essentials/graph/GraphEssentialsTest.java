@@ -64,11 +64,41 @@ public class GraphEssentialsTest {
         }
     }
 
+    @Test
+    public void testSingleGraph() {
+        List<DefaultGraphNode> myNodes = Arrays.asList(
+                new DefaultGraphNode("A", RADIUS,"B", "D"),
 
+                new DefaultGraphNode("B", RADIUS, "A","C"),
+                new DefaultGraphNode("C", RADIUS, "B"),
 
+                new DefaultGraphNode("D", RADIUS,"A", "E", "F"),
+                new DefaultGraphNode("E", RADIUS, "D"),
+                new DefaultGraphNode("F", RADIUS, "D")
+        );
+
+        GraphEssentials.distribute(myNodes);
+    }
 
     @Test
-    public void test() {
+    public void testMultiGraph() {
+        List<DefaultGraphNode> myNodes = Arrays.asList(
+                new DefaultGraphNode("A", RADIUS,"B"),
+                new DefaultGraphNode("B", RADIUS, "A","C"),
+                new DefaultGraphNode("C", RADIUS, "B"),
+
+                new DefaultGraphNode("D", RADIUS,"E", "F"),
+                new DefaultGraphNode("E", RADIUS, "D"),
+                new DefaultGraphNode("F", RADIUS, "D", "G", "H"),
+                new DefaultGraphNode("G", RADIUS, "F"),
+                new DefaultGraphNode("H", RADIUS, "F")
+        );
+
+        GraphEssentials.distribute(myNodes);
+    }
+
+    @Test
+    public void testIllegalGraph() {
         List<DefaultGraphNode> myNodes = Arrays.asList(
                 new DefaultGraphNode("A", RADIUS,"B", "F", "I"),
 
@@ -80,8 +110,11 @@ public class GraphEssentialsTest {
                 new DefaultGraphNode("F", RADIUS,"D")
         );
 
-        GraphEssentials.distribute(myNodes);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> GraphEssentials.distribute(myNodes));
+    }
 
+    @Test
+    public void testDistributionDistance() {
         Map<String, DefaultGraphNode> nodes = Stream.of(
                 new DefaultGraphNode("A", RADIUS,"B", "F", "I"),
 
