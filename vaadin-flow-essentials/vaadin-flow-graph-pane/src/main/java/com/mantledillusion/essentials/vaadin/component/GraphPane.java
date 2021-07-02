@@ -101,6 +101,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
         private NodePane() {
             this.backpane = new BackPane();
             reinitialize(Collections.emptyMap());
+            getElement().getStyle().set("position", "relative");
         }
 
         void reinitialize(Map<NodeIdType, Node> nodes) {
@@ -312,6 +313,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     public GraphPane() {
         this.nodePane = new NodePane();
         this.getElement().appendChild(this.nodePane.getElement());
+        this.getElement().getStyle().set("overflow", "auto");
     }
 
     /**
