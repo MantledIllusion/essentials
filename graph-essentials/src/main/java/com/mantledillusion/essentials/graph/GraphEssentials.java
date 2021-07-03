@@ -106,27 +106,30 @@ public class GraphEssentials {
         // DETERMINE THE HEAVIEST NODE OF ALL; IT IS THE BEST ROOT FOR THE GRAPH
         IdType graphRoot = determineHeaviestNode(neighborRegistry.keySet(), neighborRegistry);
 
-        // THERE MIGHT BE SETS OF NODES UNCONNECTED TO EACH OTHER; DETERMINE ALL OF THESE SUB GRAPHS
-        determineSubGraphs(neighborRegistry).stream()
-                // FILTER OUR THE ONE SUB GRAPH CONTAINING THE ROOT OF THE WHOLE GRAPH
-                .filter(subGraph -> !subGraph.contains(graphRoot))
-                // DETERMINE THE HEAVIEST NODES OF THE SUB GRAPH
-                .map(subGraph -> determineHeaviestNode(subGraph, neighborRegistry))
-                // ADD THAT SUB NODE AS A NEIGHBOR TO THE ROOT
-                .forEach(subGraphRoot -> neighborRegistry.get(graphRoot).add(subGraphRoot));
+        // IF THERE IS NO GRAPH ROOT, THE GRAPH IS EMPTY
+        if (graphRoot != null) {
+            // THERE MIGHT BE SETS OF NODES UNCONNECTED TO EACH OTHER; DETERMINE ALL OF THESE SUB GRAPHS
+            determineSubGraphs(neighborRegistry).stream()
+                    // FILTER OUR THE ONE SUB GRAPH CONTAINING THE ROOT OF THE WHOLE GRAPH
+                    .filter(subGraph -> !subGraph.contains(graphRoot))
+                    // DETERMINE THE HEAVIEST NODES OF THE SUB GRAPH
+                    .map(subGraph -> determineHeaviestNode(subGraph, neighborRegistry))
+                    // ADD THAT SUB NODE AS A NEIGHBOR TO THE ROOT
+                    .forEach(subGraphRoot -> neighborRegistry.get(graphRoot).add(subGraphRoot));
 
-        // FROM THE LEAVES UP: DETERMINE THE RADIUS EVERY NODE REQUIRES FOR ITSELF
-        // AND ALL POSSIBLE CHILDREN ON ITS ORBIT, AS WELL AS THE ANGLES WHERE
-        // THOSE CHILDREN ARE PLACED
-        Map<IdType, Double> radiusRegistry = new HashMap<>(nodeRegistry.size());
-        Map<IdType, Double> angleRegistry = new HashMap<>(nodeRegistry.size());
-        determineRelation(nodeRegistry, neighborRegistry, radiusRegistry, angleRegistry, graphRoot,
-                Collections.singleton(graphRoot));
+            // FROM THE LEAVES UP: DETERMINE THE RADIUS EVERY NODE REQUIRES FOR ITSELF
+            // AND ALL POSSIBLE CHILDREN ON ITS ORBIT, AS WELL AS THE ANGLES WHERE
+            // THOSE CHILDREN ARE PLACED
+            Map<IdType, Double> radiusRegistry = new HashMap<>(nodeRegistry.size());
+            Map<IdType, Double> angleRegistry = new HashMap<>(nodeRegistry.size());
+            determineRelation(nodeRegistry, neighborRegistry, radiusRegistry, angleRegistry, graphRoot,
+                    Collections.singleton(graphRoot));
 
-        // FROM THE ROOT DOWN: DETERMINE THE POSITION WHERE TO PLACE A NODE AND
-        // PLACE CHILDREN ON ITS ORBIT
-        determinePosition(nodeRegistry, neighborRegistry, radiusRegistry, angleRegistry, graphRoot,
-                0, 0, 0, -1, Collections.singleton(graphRoot));
+            // FROM THE ROOT DOWN: DETERMINE THE POSITION WHERE TO PLACE A NODE AND
+            // PLACE CHILDREN ON ITS ORBIT
+            determinePosition(nodeRegistry, neighborRegistry, radiusRegistry, angleRegistry, graphRoot,
+                    0, 0, 0, -1, Collections.singleton(graphRoot));
+        }
     }
 
     private static <IdType> List<Set<IdType>> determineSubGraphs(Map<IdType, Set<IdType>> neighborRegistry) {
