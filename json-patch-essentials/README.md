@@ -4,6 +4,15 @@ This library is meant to provide direct RFC 6902 support for Java objects, by pr
 
 It uses [zjsonpatch](https://github.com/flipkart-incubator/zjsonpatch) for RFC compatibility and [Jackson](https://github.com/FasterXML/jackson-databind) for Java<->JSON mapping.
 
+```xml
+<dependency>
+    <groupId>com.mantledillusion.essentials</groupId>
+    <artifactId>json-patch-essentials</artifactId>
+</dependency>
+```
+
+Get the newest version at [mvnrepository.com/json-patch-essentials](https://mvnrepository.com/artifact/com.mantledillusion.essentials/json-patch-essentials)
+
 ## Capturing changes
 
 First, use the **_PatchUtil_** to take a **_Snapshot_** of your Java object <u>before</u> doing any changes; afterwards, the object can be changed arbitrarily. Using the Snapshot <u>after</u> changes being made, all changes will be captured as patches:

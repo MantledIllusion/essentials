@@ -2,7 +2,18 @@
 
 This library provides 2-dimensional node distribution for (single or bi-directional) graphs on a coordinate system for visualization purposes.
 
-It uses an orbital distribution layout, in which, starting with the heaviest node (highest weight when considering all children and their respective weights), each node places its children (lower weight neighbors) on a circular orbit around itself.
+```xml
+<dependency>
+    <groupId>com.mantledillusion.essentials</groupId>
+    <artifactId>graph-essentials</artifactId>
+</dependency>
+```
+
+Get the newest version at [mvnrepository.com/graph-essentials](https://mvnrepository.com/artifact/com.mantledillusion.essentials/graph-essentials)
+
+## Node Distribution
+
+The library uses an orbital distribution layout, in which, starting with the heaviest node (highest weight when considering all children and their respective weights), each node places its children (lower weight neighbors) on a circular orbit around itself.
 
 ![Rendered Graph](rendered_graph.png)
 
