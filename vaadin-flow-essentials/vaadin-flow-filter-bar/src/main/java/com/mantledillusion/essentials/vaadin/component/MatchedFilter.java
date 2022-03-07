@@ -56,6 +56,15 @@ public final class MatchedFilter<G extends Enum<G>, P extends Enum<P> & MatchedF
     }
 
     /**
+     * Returns all parts the input was separated into.
+     *
+     * @return The parts, never null or empty
+     */
+    public Map<P, String> getPartMappings() {
+        return this.parts;
+    }
+
+    /**
      * Retrieves a part from this {@link FilterBar}.
      *
      * @param part The part to retrieve; might be null.

@@ -2,9 +2,10 @@ package com.mantledillusion.essentials.vaadin.component;
 
 import com.vaadin.flow.component.ComponentEvent;
 
+import java.util.List;
+
 /**
- * {@link ComponentEvent} fired when there either is a {@link MatchedFilter} {@link FilterChangeAction#ADDED} or
- * {@link FilterChangeAction#REMOVED} to/from the {@link FilterBar}.
+ * {@link ComponentEvent} fired when there is at least one {@link MatchedFilter} added or removed from its {@link FilterBar}.
  *
  * @param <G> The {@link Enum} representing the input groups (for example a name, an address, a specific ID, ...).
  * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
@@ -12,37 +13,30 @@ import com.vaadin.flow.component.ComponentEvent;
  */
 public final class MatchedFilterChangedEvent<G extends Enum<G>, P extends Enum<P> & MatchedFilterInputPart> extends ComponentEvent<FilterBar<G, P>> {
 
-    /**
-     * Defines the possible types of {@link MatchedFilterChangedEvent}s.
-     */
-    public enum FilterChangeAction {
-        ADDED, REMOVED;
-    }
+    private final List<MatchedFilter<G, P>> added;
+    private final List<MatchedFilter<G, P>> removed;
 
-    private final MatchedFilter<G, P> changedFilter;
-    private final FilterChangeAction action;
-
-    MatchedFilterChangedEvent(FilterBar<G, P> source, boolean fromClient, MatchedFilter<G, P> changedFilter, FilterChangeAction action) {
+    MatchedFilterChangedEvent(FilterBar<G, P> source, boolean fromClient, List<MatchedFilter<G, P>> added, List<MatchedFilter<G, P>> removed) {
         super(source, fromClient);
-        this.changedFilter = changedFilter;
-        this.action = action;
+        this.added = added;
+        this.removed = removed;
     }
 
     /**
-     * Returns the {@link MatchedFilter} that changed
+     * The {@link MatchedFilter}s added to the {@link FilterBar}.
      *
-     * @return The filter, never null
+     * @return The {@link MatchedFilter}s, never null
      */
-    public MatchedFilter<G, P> getChangedFilter() {
-        return changedFilter;
+    public List<MatchedFilter<G, P>> getAdded() {
+        return this.added;
     }
 
     /**
-     * Returns the type of action to the {@link MatchedFilter} that caused this {@link MatchedFilterChangedEvent}.
+     * The {@link MatchedFilter}s removed from the {@link FilterBar}.
      *
-     * @return The {@link FilterChangeAction}, never null
+     * @return The {@link MatchedFilter}s, never null
      */
-    public FilterChangeAction getAction() {
-        return action;
+    public List<MatchedFilter<G, P>> getRemoved() {
+        return this.removed;
     }
 }

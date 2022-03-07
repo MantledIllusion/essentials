@@ -17,6 +17,7 @@ import com.vaadin.flow.shared.Registration;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -61,8 +62,144 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
         EAGER;
     }
 
-    private InputAnalyzer<G, P> analyzer;
-    private final List<MatchedFilter<G, P>> filters = new ArrayList<>();
+    /**
+     * Builder for a set of add/remove modification to the {@link FilterBar}'s current {@link MatchedFilter}s.
+     */
+    public class FilterModificationBuilder {
+
+        /**
+         * Builder for a single modification to a specific group of {@link MatchedFilter}s.
+         */
+        public class FilterGroupModificationBuilder {
+
+            private final G group;
+            private final List<Predicate<Map<P, String>>> parts = new ArrayList<>();
+
+            private FilterGroupModificationBuilder(G group) {
+                this.group = group;
+            }
+
+            /**
+             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being present.
+             *
+             * @param part The part that needs to be present in a group in order for the modification to apply; might <b>not</b> be null.
+             * @return this
+             */
+            public FilterGroupModificationBuilder andPartPresent(P part) {
+                if (part == null) {
+                    throw new IllegalArgumentException("Cannot filter for a null part");
+                }
+                this.parts.add(parts -> parts.containsKey(part));
+                return this;
+            }
+
+            /**
+             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being absent.
+             *
+             * @param part The part that needs to be absent in a group in order for the modification to apply; might <b>not</b> be null.
+             * @return this
+             */
+            public FilterGroupModificationBuilder andPartAbsent(P part) {
+                if (part == null) {
+                    throw new IllegalArgumentException("Cannot filter for a null part");
+                }
+                this.parts.add(parts -> !parts.containsKey(part));
+                return this;
+            }
+
+            /**
+             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being present and matching the given regular expressen.
+             *
+             * @param part The part that needs to be present and matching in a group in order for the modification to apply; might <b>not</b> be null.
+             * @param regex The regex the part needs to match; might <b>not</b> be null.
+             * @return this
+             */
+            public FilterGroupModificationBuilder andPartMatching(P part, String regex) {
+                if (part == null) {
+                    throw new IllegalArgumentException("Cannot filter for a null part");
+                } else if (regex == null) {
+                    throw new IllegalArgumentException("Cannot match against a null regex");
+                }
+                this.parts.add(parts -> parts.containsKey(part) && parts.get(part).matches(regex));
+                return this;
+            }
+
+            /**
+             * Adds {@link MatchedFilter}s for the given term.
+             * <p>
+             * From all the part sets analyzed from the given term, only such {@link MatchedFilter}s are added whose
+             * {@link MatchedFilterInputPart}s match the filters specified by:
+             * <p>
+             * - {@link #andPartPresent(Enum)}<br>
+             * - {@link #andPartAbsent(Enum)}<br>
+             * - {@link #andPartMatching(Enum, String)}<br>
+             *
+             * @param term The term to add {@link MatchedFilter}s for; might <b>not</b> be null.
+             * @return This {@link FilterGroupModificationBuilder}'s parent {@link FilterModificationBuilder}
+             */
+            public FilterModificationBuilder add(String term) {
+                if (term == null) {
+                    throw new IllegalArgumentException("Cannot add a filter for a null term");
+                }
+                FilterBar.this.analyzer.analyzeForGroup(term, this.group).stream()
+                        .filter(parts -> this.parts.stream().allMatch(part -> part.test(parts)))
+                        .map(parts -> new MatchedFilter<>(this.group, parts, FilterBar.this.groupRenderer, FilterBar.this.partRenderer))
+                        .forEach(FilterModificationBuilder.this.added::add);
+
+                return FilterModificationBuilder.this;
+            }
+
+            /**
+             * Removes {@link MatchedFilter}s.
+             * <p>
+             * Only such {@link MatchedFilter}s are added whose {@link MatchedFilterInputPart}s match the filters specified by:
+             * <p>
+             * - {@link #andPartPresent(Enum)}<br>
+             * - {@link #andPartAbsent(Enum)}<br>
+             * - {@link #andPartMatching(Enum, String)}<br>
+             *
+             * @return This {@link FilterGroupModificationBuilder}'s parent {@link FilterModificationBuilder}
+             */
+            public FilterModificationBuilder remove() {
+                FilterBar.this.filters.keySet().stream()
+                        .filter(filter -> filter.getGroup() == this.group)
+                        .filter(filter -> this.parts.stream().allMatch(part -> part.test(filter.getPartMappings())))
+                        .forEach(FilterModificationBuilder.this.removed::add);
+
+                return FilterModificationBuilder.this;
+            }
+        }
+
+        private final List<MatchedFilter<G, P>> added = new ArrayList<>();
+        private final List<MatchedFilter<G, P>> removed = new ArrayList<>();
+
+        private FilterModificationBuilder() {}
+
+        /**
+         * Begins a new {@link FilterGroupModificationBuilder} for a specific group.
+         *
+         * @param group The group to create a modification for; might <b>not</b> be null.
+         * @return A new {@link FilterGroupModificationBuilder}, never null
+         */
+        public FilterGroupModificationBuilder forGroup(G group) {
+            if (group == null) {
+                throw new IllegalArgumentException("Cannot begin modifying a null group");
+            }
+            return new FilterGroupModificationBuilder(group);
+        }
+
+        /**
+         * Applies all created modifications to this {@link FilterGroupModificationBuilder}'s {@link FilterBar}.
+         */
+        public void apply() {
+            this.removed.forEach(FilterBar.this::removeFilter);
+            this.added.forEach(FilterBar.this::addFilter);
+            FilterBar.this.notify(Collections.unmodifiableList(this.added), Collections.unmodifiableList(this.removed), false);
+        }
+    }
+
+    private final InputAnalyzer<G, P> analyzer;
+    private final Map<MatchedFilter<G, P>, Component> filters = new IdentityHashMap<>();
 
     private final HorizontalLayout filterLayout;
     private final HorizontalLayout mainLayout;
@@ -204,25 +341,43 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
         dialog.setCloseOnEsc(true);
 
         ok.addClickListener(event -> {
-            addFilter(partingSelect.getValue(), event.isFromClient());
+            addFilter(partingSelect.getValue());
+            notify(Collections.singletonList(partingSelect.getValue()), Collections.emptyList(), event.isFromClient());
             dialog.close();
         });
 
         dialog.open();
     }
 
-    private void addFilter(MatchedFilter<G, P> filter, boolean isFromClient) {
+    /**
+     * Begins a new {@link FilterModificationBuilder} to programmatically apply modifications to the {@link FilterBar}'s
+     * current set of {@link MatchedFilter}s.
+     *
+     * @return A new {@link FilterModificationBuilder}, never null
+     */
+    public FilterModificationBuilder modify() {
+        return new FilterModificationBuilder();
+    }
+
+    private void addFilter(MatchedFilter<G, P> filter) {
         Button filterBadge = new Button(filter.toString(), VaadinIcon.CLOSE_SMALL.create());
         filterBadge.addThemeVariants(ButtonVariant.LUMO_SMALL);
         filterBadge.addClickListener(event -> {
-            this.filters.remove(filter);
-            this.filterLayout.remove(filterBadge);
-            fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, filter, MatchedFilterChangedEvent.FilterChangeAction.REMOVED));
+            removeFilter(filter);
+            notify(Collections.emptyList(), Collections.singletonList(filter), event.isFromClient());
         });
 
-        this.filters.add(filter);
+        this.filters.put(filter, filterBadge);
         this.filterLayout.add(filterBadge);
-        fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, filter, MatchedFilterChangedEvent.FilterChangeAction.ADDED));
+    }
+
+    private void removeFilter(MatchedFilter<G, P> filter) {
+        this.filterLayout.remove(this.filters.get(filter));
+        this.filters.remove(filter);
+    }
+
+    private void notify(List<MatchedFilter<G, P>> added, List<MatchedFilter<G, P>> removed, boolean isFromClient) {
+        fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, added, removed));
     }
 
     /**
