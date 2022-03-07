@@ -324,26 +324,16 @@ public class HeatCalendar<EventType> extends Composite<Component> implements Has
     private void render() {
         this.calendar.removeAll();
 
-        if (this.buckets.isEmpty()) {
-            VerticalLayout verticalCenter = new VerticalLayout();
-            verticalCenter.setWidthFull();
-            verticalCenter.setDefaultHorizontalComponentAlignment(FlexComponent.Alignment.CENTER);
-
-            HorizontalLayout horizontalCenter = new HorizontalLayout();
-            horizontalCenter.setHeightFull();
-            horizontalCenter.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
-
-            verticalCenter.add(horizontalCenter);
-            horizontalCenter.add(VaadinIcon.FILE_TEXT.create());
-        } else {
-            if (this.showDayLabel) {
-                this.calendar.add(buildLabelColumn());
-            }
-            IntStream.range(this.bucketHistoryRange.min.year, this.bucketHistoryRange.max.year+1)
-                    .forEach(year -> streamYear(year)
-                            .map(week -> buildWeekColumn(week, this.buckets.get(week)))
-                            .forEach(this.calendar::add));
+        if (this.showDayLabel) {
+            this.calendar.add(buildLabelColumn());
         }
+        IntStream.range(
+                        Optional.ofNullable(this.bucketHistoryRange.min).map(Week::getYear).orElse(0),
+                        Optional.ofNullable(this.bucketHistoryRange.max).map(Week::getYear).map(year -> year + 1).orElse(0)
+                )
+                .forEach(year -> streamYear(year)
+                        .map(week -> buildWeekColumn(week, this.buckets.get(week)))
+                        .forEach(this.calendar::add));
     }
 
     private void digestValue(EventType element) {
