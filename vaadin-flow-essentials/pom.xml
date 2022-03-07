@@ -36,5 +36,6 @@
 	<modules>
 		<module>vaadin-flow-filter-bar</module>
 		<module>vaadin-flow-graph-pane</module>
+		<module>vaadin-flow-heat-calendar</module>
 	</modules>
 </project>
