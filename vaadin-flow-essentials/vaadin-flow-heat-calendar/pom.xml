@@ -10,7 +10,7 @@
 	</parent>
 	
 	<artifactId>vaadin-flow-heat-calendar</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>jar</packaging>
 	
 	<name>Vaadin Flow Heat Calendar</name>
