@@ -54,6 +54,10 @@
 			<groupId>com.vaadin</groupId>
 			<artifactId>vaadin-dialog-flow</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.vaadin</groupId>
+			<artifactId>vaadin-menu-bar-flow</artifactId>
+		</dependency>
 	</dependencies>
 	
 	<build>
