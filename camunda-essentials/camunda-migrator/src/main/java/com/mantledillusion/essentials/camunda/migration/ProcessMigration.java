@@ -2,6 +2,9 @@ package com.mantledillusion.essentials.camunda.migration;
 
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
+import org.camunda.bpm.engine.migration.MigratingProcessInstanceValidationException;
+import org.camunda.bpm.engine.migration.MigrationPlan;
+import org.camunda.bpm.engine.migration.MigrationPlanBuilder;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
@@ -13,11 +16,6 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public final class ProcessMigration {
-
-    private static abstract class AbstractMigrator {
-
-        protected abstract void migrate(ProcessMigration migration);
-    }
 
     public interface FilteringBuilder<This> {
 
@@ -32,7 +30,7 @@ public final class ProcessMigration {
         This withVariableEquals(String variableName, Object value);
     }
 
-    public static class ScenarioBuilder<Parent> extends AbstractMigrator implements FilteringBuilder<ScenarioBuilder<Parent>> {
+    public static class ScenarioBuilder<Parent> implements FilteringBuilder<ScenarioBuilder<Parent>> {
 
         public static class SubScenarioBuilder<Parent> {
 
@@ -43,18 +41,17 @@ public final class ProcessMigration {
             }
 
             public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) {
-                return this.scenario.addMigrator(new ScenarioBuilder<>(this));
+                return this.scenario.addMigrator(new ScenarioBuilder<>(this)); // TODO note name for report
             }
 
             public Parent done() {
-                // TODO
                 return this.scenario.parent;
             }
         }
 
         private final Parent parent;
-        private final List<Consumer<ProcessMigration>> migrationAdaptors = new ArrayList<>();
-        private final List<AbstractMigrator> migrators = new ArrayList<>();
+        private final List<Consumer<ProcessMigration>> adaptors = new ArrayList<>();
+        private final List<ScenarioBuilder<?>> migrators = new ArrayList<>();
 
         private ScenarioBuilder(Parent parent) {
             this.parent = parent;
@@ -62,76 +59,83 @@ public final class ProcessMigration {
 
         @Override
         public ScenarioBuilder<Parent> withDefinitionKey(String definitionKey) {
-            return addAdaptor(migration -> migration.addPreFilter(query -> query.processDefinitionKey(definitionKey)));
+            return addAdaptor(migration -> migration.addProcessPreFilter(query -> query.processDefinitionKey(definitionKey)));
         }
 
         @Override
         public ScenarioBuilder<Parent> withVersionTag(String versionTag) {
-            return addAdaptor(migration -> migration.addPostFilter((definition, instance) -> definition.getVersionTag().equals(versionTag)));
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getVersionTag().equals(versionTag)));
         }
 
         @Override
         public ScenarioBuilder<Parent> withVersion(int version) {
-            return addAdaptor(migration -> migration.addPostFilter((definition, instance) -> definition.getVersion() == version));
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getVersion() == version));
         }
 
         @Override
         public ScenarioBuilder<Parent> withActivity(String activityId) {
-            return addAdaptor(migration -> migration.addPreFilter(query -> query.activityIdIn(activityId)));
+            return addAdaptor(migration -> migration.addProcessPreFilter(query -> query.activityIdIn(activityId)));
         }
 
         @Override
         public ScenarioBuilder<Parent> withVariableEquals(String variableName, Object value) {
-            return addAdaptor(migration -> migration.addPreFilter(query -> query.variableValueEquals(variableName, value)));
-        }
-
-        private <A extends Consumer<ProcessMigration>> ScenarioBuilder<Parent> addAdaptor(A adaptor) {
-            this.migrationAdaptors.add(adaptor);
-            return this;
+            return addAdaptor(migration -> migration.addProcessPreFilter(query -> query.variableValueEquals(variableName, value)));
         }
 
         public PredicateBuilder<Parent> when(String name) {
             return new PredicateBuilder<>(this); // TODO note name for report
         }
 
+        public ScenarioBuilder<Parent> toDefinitionId(String definitionId) {
+            return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.processDefinitionId(definitionId)));
+        }
+
+        public ScenarioBuilder<Parent> toDefinitionKey(String definitionKey) {
+            return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.processDefinitionKey(definitionKey)));
+        }
+
+        public ScenarioBuilder<Parent> toDefinitionTag(String definitionTag) {
+            return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.versionTag(definitionTag)));
+        }
+
+        public ScenarioBuilder<Parent> toSpecificDefinitionVersion(int definitionVersion) {
+            return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.processDefinitionVersion(definitionVersion)));
+        }
+
+        public ScenarioBuilder<Parent> toLatestDefinitionVersion() {
+            return addAdaptor(migration -> migration.addDefinitionFilter(ProcessDefinitionQuery::latestVersion));
+        }
+
+        public ScenarioBuilder<Parent> usingDefaultMappings() {
+            return addAdaptor(migration -> migration.addMigrationPlanAdjustment(MigrationPlanBuilder::mapEqualActivities));
+        }
+
+        public ScenarioBuilder<Parent> usingMapping(String sourceActivityId, String targetActivityId) {
+            return addAdaptor(migration -> migration.addMigrationPlanAdjustment(plan -> plan.mapActivities(sourceActivityId, targetActivityId)));
+        }
+
         public SubScenarioBuilder<Parent> defineScenarios() {
             return new SubScenarioBuilder<>(this);
         }
 
-        public MigrationBuilder<Parent> defineMigrationToId(String definitionId) {
-            return addMigrator(new MigrationBuilder<>(parent,
-                    query -> query.processDefinitionId(definitionId)));
+        public Parent done() {
+            return this.parent;
         }
 
-        public MigrationBuilder<Parent> defineMigrationToLatestKey(String definitionKey) {
-            return addMigrator(new MigrationBuilder<>(parent,
-                    query -> query.processDefinitionKey(definitionKey),
-                    query -> query.latestVersion()));
+        private <A extends Consumer<ProcessMigration>> ScenarioBuilder<Parent> addAdaptor(A adaptor) {
+            this.adaptors.add(adaptor);
+            return this;
         }
 
-        public MigrationBuilder<Parent> defineMigrationToTaggedKey(String definitionKey, String versionTag) {
-            return addMigrator(new MigrationBuilder<>(parent,
-                    query -> query.processDefinitionKey(definitionKey),
-                    query -> query.versionTag(versionTag),
-                    query -> query.latestVersion()));
-        }
-
-        public MigrationBuilder<Parent> defineMigrationToSpecificKey(String definitionKey, int definitionVersion) {
-            return addMigrator(new MigrationBuilder<>(parent,
-                    query -> query.processDefinitionKey(definitionKey),
-                    query -> query.processDefinitionVersion(definitionVersion)));
-        }
-
-        private <M extends AbstractMigrator> M addMigrator(M migrator) {
+        private <M extends ScenarioBuilder<?>> M addMigrator(M migrator) {
             this.migrators.add(migrator);
             return migrator;
         }
 
-        @Override
-        protected void migrate(ProcessMigration processMigration) {
+        private void migrate(ProcessMigration processMigration) {
             Stream.of(processMigration)
                     .map(ProcessMigration::copy)
-                    .peek(filter -> this.migrationAdaptors.forEach(adaptor -> adaptor.accept(filter)))
+                    .peek(filter -> this.adaptors.forEach(adaptor -> adaptor.accept(filter)))
                     .forEach(filter -> this.migrators.forEach(migrator -> migrator.migrate(filter)));
         }
     }
@@ -225,38 +229,6 @@ public final class ProcessMigration {
         }
     }
 
-    public static class MigrationBuilder<Parent> extends AbstractMigrator {
-
-        private final Parent parent;
-        private final List<Consumer<ProcessDefinitionQuery>> definitionFilters;
-
-        @SafeVarargs
-        private MigrationBuilder(Parent parent, Consumer<ProcessDefinitionQuery>... definitionFilters) {
-            this.parent = parent;
-            this.definitionFilters = Arrays.asList(definitionFilters);
-        }
-
-        public MigrationBuilder<Parent> withDefaultMappings() {
-            // TODO auto-generate default mappings using camunda
-            return this;
-        }
-
-        public MigrationBuilder<Parent> withMapping(String sourceActivityId, String targetActivityId) {
-            // TODO add specific mapping
-            return this;
-        }
-
-        public Parent done() {
-            return this.parent;
-        }
-
-        @Override
-        protected void migrate(ProcessMigration processMigration) {
-            this.definitionFilters.forEach(processMigration::addDefinitionFilter);
-            processMigration.migrate(); // TODO mappings
-        }
-    }
-
     public static class ExecutionBuilder {
 
         private final RepositoryService repositoryService;
@@ -282,6 +254,7 @@ public final class ProcessMigration {
             ProcessInstanceQuery::active
     ));
     private final List<BiPredicate<ProcessDefinition, ProcessInstance>> postFilters = new ArrayList<>();
+    private final List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments = new ArrayList<>();
 
     private ProcessMigration(RepositoryService repositoryService, RuntimeService runtimeService) {
         this.repositoryService = repositoryService;
@@ -292,12 +265,16 @@ public final class ProcessMigration {
         this.definitionFilters.add(definitionFilter);
     }
 
-    private void addPreFilter(Consumer<ProcessInstanceQuery> preFilter) {
+    private void addProcessPreFilter(Consumer<ProcessInstanceQuery> preFilter) {
         this.preFilters.add(preFilter);
     }
 
-    private void addPostFilter(BiPredicate<ProcessDefinition, ProcessInstance> postFilter) {
+    private void addProcessPostFilter(BiPredicate<ProcessDefinition, ProcessInstance> postFilter) {
         this.postFilters.add(postFilter);
+    }
+
+    private void addMigrationPlanAdjustment(Consumer<MigrationPlanBuilder> adjustment) {
+        this.migrationPlanAdjustments.add(adjustment);
     }
 
     private ProcessMigration copy() {
@@ -325,10 +302,28 @@ public final class ProcessMigration {
         ProcessInstanceQuery query = this.runtimeService.createProcessInstanceQuery();
 
         // RETRIEVE
-        query.list();
+        List<ProcessInstance> instances = query.list();
 
         // POST FILTER PROCESSES IN MEMORY
 
+        // MIGRATE EVERY INSTANCE
+        for (ProcessInstance instance: instances) {
+            MigrationPlanBuilder builder = this.runtimeService
+                    .createMigrationPlan(instance.getProcessDefinitionId(), targetDefinition.getId());
+
+            this.migrationPlanAdjustments.forEach(adjustment -> adjustment.accept(builder));
+
+            MigrationPlan plan = builder.build();
+
+            try {
+                this.runtimeService
+                        .newMigration(plan)
+                        .processInstanceIds(instance.getId())
+                        .execute();
+            } catch (MigratingProcessInstanceValidationException e) {
+                // TODO REPORT
+            }
+        }
     }
 
     public static ScenarioBuilder<ExecutionBuilder> findProcesses(RepositoryService repositoryService, RuntimeService runtimeService) {
