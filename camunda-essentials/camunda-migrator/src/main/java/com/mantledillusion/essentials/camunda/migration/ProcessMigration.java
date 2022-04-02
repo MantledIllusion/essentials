@@ -1,44 +1,35 @@
 package com.mantledillusion.essentials.camunda.migration;
 
+import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
+import org.camunda.bpm.engine.repository.ProcessDefinition;
+import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
+import org.camunda.bpm.engine.runtime.ProcessInstance;
+import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
-public abstract class ProcessMigration {
+public final class ProcessMigration {
 
     private static abstract class AbstractMigrator {
 
-        protected abstract void migrate(RuntimeService runtimeService);
+        protected abstract void migrate(ProcessMigration migration);
     }
 
-    @SuppressWarnings("unchecked")
     public interface FilteringBuilder<This> {
 
-        default This withDefinitionKey(String definitionKey) {
-            // TODO
-            return (This) this;
-        }
+        This withDefinitionKey(String definitionKey);
 
-        default This withVersionTag(String versionTag) {
-            // TODO
-            return (This) this;
-        }
+        This withVersionTag(String versionTag);
 
-        default This withActivity(String activityName) {
-            // TODO
-            return (This) this;
-        }
+        This withVersion(int version);
 
-        default This withVariable(String variableName) {
-            // TODO
-            return (This) this;
-        }
+        This withActivity(String activityName);
 
-        default This withVariable(String variableName, String value) {
-            // TODO
-            return (This) this;
-        }
+        This withVariableEquals(String variableName, Object value);
     }
 
     public static class ScenarioBuilder<Parent> extends AbstractMigrator implements FilteringBuilder<ScenarioBuilder<Parent>> {
@@ -52,7 +43,7 @@ public abstract class ProcessMigration {
             }
 
             public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) {
-                return this.scenario.add(new ScenarioBuilder<>(this));
+                return this.scenario.addMigrator(new ScenarioBuilder<>(this));
             }
 
             public Parent done() {
@@ -62,43 +53,86 @@ public abstract class ProcessMigration {
         }
 
         private final Parent parent;
+        private final List<Consumer<ProcessMigration>> migrationAdaptors = new ArrayList<>();
         private final List<AbstractMigrator> migrators = new ArrayList<>();
 
         private ScenarioBuilder(Parent parent) {
             this.parent = parent;
         }
 
+        @Override
+        public ScenarioBuilder<Parent> withDefinitionKey(String definitionKey) {
+            return addAdaptor(migration -> migration.addPreFilter(query -> query.processDefinitionKey(definitionKey)));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> withVersionTag(String versionTag) {
+            return addAdaptor(migration -> migration.addPostFilter((definition, instance) -> definition.getVersionTag().equals(versionTag)));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> withVersion(int version) {
+            return addAdaptor(migration -> migration.addPostFilter((definition, instance) -> definition.getVersion() == version));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> withActivity(String activityId) {
+            return addAdaptor(migration -> migration.addPreFilter(query -> query.activityIdIn(activityId)));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> withVariableEquals(String variableName, Object value) {
+            return addAdaptor(migration -> migration.addPreFilter(query -> query.variableValueEquals(variableName, value)));
+        }
+
+        private <A extends Consumer<ProcessMigration>> ScenarioBuilder<Parent> addAdaptor(A adaptor) {
+            this.migrationAdaptors.add(adaptor);
+            return this;
+        }
+
         public PredicateBuilder<Parent> when(String name) {
-            return new PredicateBuilder<>(this);
+            return new PredicateBuilder<>(this); // TODO note name for report
         }
 
         public SubScenarioBuilder<Parent> defineScenarios() {
             return new SubScenarioBuilder<>(this);
         }
 
-        public MigrationBuilder<Parent> defineMigrationTo(String definitionId) {
-            // TODO overtake given definitionId
-            return add(new MigrationBuilder<>(parent));
+        public MigrationBuilder<Parent> defineMigrationToId(String definitionId) {
+            return addMigrator(new MigrationBuilder<>(parent,
+                    query -> query.processDefinitionId(definitionId)));
         }
 
-        public MigrationBuilder<Parent> defineMigrationTo(String definitionKey, String definitionVersion) {
-            // TODO determine definitionId using key/version
-            return add(new MigrationBuilder<>(parent));
+        public MigrationBuilder<Parent> defineMigrationToLatestKey(String definitionKey) {
+            return addMigrator(new MigrationBuilder<>(parent,
+                    query -> query.processDefinitionKey(definitionKey),
+                    query -> query.latestVersion()));
         }
 
-        public MigrationBuilder<Parent> defineMigrationTo(String definitionKey, MigrationBuilder.ProcessVersion version) {
-            // TODO determine definitionId using key/version
-            return add(new MigrationBuilder<>(parent));
+        public MigrationBuilder<Parent> defineMigrationToTaggedKey(String definitionKey, String versionTag) {
+            return addMigrator(new MigrationBuilder<>(parent,
+                    query -> query.processDefinitionKey(definitionKey),
+                    query -> query.versionTag(versionTag),
+                    query -> query.latestVersion()));
         }
 
-        private <M extends AbstractMigrator> M add(M migrator) {
+        public MigrationBuilder<Parent> defineMigrationToSpecificKey(String definitionKey, int definitionVersion) {
+            return addMigrator(new MigrationBuilder<>(parent,
+                    query -> query.processDefinitionKey(definitionKey),
+                    query -> query.processDefinitionVersion(definitionVersion)));
+        }
+
+        private <M extends AbstractMigrator> M addMigrator(M migrator) {
             this.migrators.add(migrator);
             return migrator;
         }
 
         @Override
-        protected void migrate(RuntimeService runtimeService) {
-            this.migrators.forEach(migrator -> migrator.migrate(runtimeService));
+        protected void migrate(ProcessMigration processMigration) {
+            Stream.of(processMigration)
+                    .map(ProcessMigration::copy)
+                    .peek(filter -> this.migrationAdaptors.forEach(adaptor -> adaptor.accept(filter)))
+                    .forEach(filter -> this.migrators.forEach(migrator -> migrator.migrate(filter)));
         }
     }
 
@@ -108,6 +142,31 @@ public abstract class ProcessMigration {
 
         private PredicateBuilder(ScenarioBuilder<Parent> parent) {
             this.parent = parent;
+        }
+
+        @Override
+        public PredicateBuilder<Parent> withDefinitionKey(String definitionKey) {
+            return this; // TODO
+        }
+
+        @Override
+        public PredicateBuilder<Parent> withVersionTag(String versionTag) {
+            return this; // TODO
+        }
+
+        @Override
+        public PredicateBuilder<Parent> withVersion(int version) {
+            return this; // TODO
+        }
+
+        @Override
+        public PredicateBuilder<Parent> withActivity(String activityName) {
+            return this; // TODO
+        }
+
+        @Override
+        public PredicateBuilder<Parent> withVariableEquals(String variableName, Object value) {
+            return this; // TODO
         }
 
         public BeforeMigrationManipulationBuilder<Parent> beforeMigrate() {
@@ -168,15 +227,13 @@ public abstract class ProcessMigration {
 
     public static class MigrationBuilder<Parent> extends AbstractMigrator {
 
-        public enum ProcessVersion {
-            EARLIEST,
-            LATEST
-        }
-
         private final Parent parent;
+        private final List<Consumer<ProcessDefinitionQuery>> definitionFilters;
 
-        private MigrationBuilder(Parent parent) {
+        @SafeVarargs
+        private MigrationBuilder(Parent parent, Consumer<ProcessDefinitionQuery>... definitionFilters) {
             this.parent = parent;
+            this.definitionFilters = Arrays.asList(definitionFilters);
         }
 
         public MigrationBuilder<Parent> withDefaultMappings() {
@@ -194,31 +251,88 @@ public abstract class ProcessMigration {
         }
 
         @Override
-        protected void migrate(RuntimeService runtimeService) {
-            // TODO actually migrate the process in camunda using the gathered mappings
+        protected void migrate(ProcessMigration processMigration) {
+            this.definitionFilters.forEach(processMigration::addDefinitionFilter);
+            processMigration.migrate(); // TODO mappings
         }
     }
 
     public static class ExecutionBuilder {
 
+        private final RepositoryService repositoryService;
         private final RuntimeService runtimeService;
         private ScenarioBuilder<ExecutionBuilder> rootScenario;
 
-        public ExecutionBuilder(RuntimeService runtimeService) {
+        public ExecutionBuilder(RepositoryService repositoryService, RuntimeService runtimeService) {
+            this.repositoryService = repositoryService;
             this.runtimeService = runtimeService;
         }
 
         public void migrate() {
-            this.rootScenario.migrate(this.runtimeService);
+            this.rootScenario.migrate(new ProcessMigration(repositoryService, runtimeService));
         }
     }
 
-    private ProcessMigration() {
+    private final RepositoryService repositoryService;
+    private final RuntimeService runtimeService;
+    private final List<Consumer<ProcessDefinitionQuery>> definitionFilters = new ArrayList<>(Collections.singletonList(
+            ProcessDefinitionQuery::active
+    ));
+    private final List<Consumer<ProcessInstanceQuery>> preFilters = new ArrayList<>(Collections.singletonList(
+            ProcessInstanceQuery::active
+    ));
+    private final List<BiPredicate<ProcessDefinition, ProcessInstance>> postFilters = new ArrayList<>();
+
+    private ProcessMigration(RepositoryService repositoryService, RuntimeService runtimeService) {
+        this.repositoryService = repositoryService;
+        this.runtimeService = runtimeService;
+    }
+
+    private void addDefinitionFilter(Consumer<ProcessDefinitionQuery> definitionFilter) {
+        this.definitionFilters.add(definitionFilter);
+    }
+
+    private void addPreFilter(Consumer<ProcessInstanceQuery> preFilter) {
+        this.preFilters.add(preFilter);
+    }
+
+    private void addPostFilter(BiPredicate<ProcessDefinition, ProcessInstance> postFilter) {
+        this.postFilters.add(postFilter);
+    }
+
+    private ProcessMigration copy() {
+        return null; // TODO
+    }
+
+    private void migrate() {
+        // FILTER TARGET DEFINITIONS IN THE ENGINE
+        ProcessDefinitionQuery definitionQuery = this.repositoryService.createProcessDefinitionQuery();
+        this.definitionFilters.forEach(filter -> filter.accept(definitionQuery));
+        List<ProcessDefinition> targetDefinitions = definitionQuery.listPage(0, 2);
+
+        ProcessDefinition targetDefinition;
+        if (targetDefinitions.isEmpty()) {
+            // REPORT
+            return;
+        } else if (targetDefinitions.size() > 1) {
+            // REPORT
+            return;
+        } else {
+            targetDefinition = targetDefinitions.iterator().next();
+        }
+
+        // PRE FILTER PROCESSES IN THE ENGINE
+        ProcessInstanceQuery query = this.runtimeService.createProcessInstanceQuery();
+
+        // RETRIEVE
+        query.list();
+
+        // POST FILTER PROCESSES IN MEMORY
 
     }
 
-    public static ScenarioBuilder<ExecutionBuilder> findProcesses(RuntimeService runtimeService) {
-        ExecutionBuilder executionBuilder = new ExecutionBuilder(runtimeService);
+    public static ScenarioBuilder<ExecutionBuilder> findProcesses(RepositoryService repositoryService, RuntimeService runtimeService) {
+        ExecutionBuilder executionBuilder = new ExecutionBuilder(repositoryService, runtimeService);
         ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder);
 
         executionBuilder.rootScenario = scenarioBuilder;
