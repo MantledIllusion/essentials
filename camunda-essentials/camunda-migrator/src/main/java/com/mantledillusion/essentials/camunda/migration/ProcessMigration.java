@@ -2,9 +2,13 @@ package com.mantledillusion.essentials.camunda.migration;
 
 import org.camunda.bpm.engine.RuntimeService;
 
-public class ProcessMigration {
+public abstract class ProcessMigration {
 
     public static abstract class AbstractFilteringBuilder<This> {
+
+        private AbstractFilteringBuilder() {
+
+        }
 
         public This withDefinitionKey(String definitionKey) {
             // TODO
@@ -45,16 +49,16 @@ public class ProcessMigration {
             return new PredicateBuilder<>(this);
         }
 
-        public ScenarioListBuilder<Parent> migrateScenarios() {
-            return set(new ScenarioListBuilder<>(this));
+        public ScenarioListBuilder<Parent> defineScenarios() {
+            return set(new ScenarioListBuilder<>(parent));
         }
 
-        public MigrationBuilder<Parent> migrateProcess(String definitionId) {
+        public MigrationBuilder<Parent> defineMigrationTo(String definitionId) {
             // TODO
             return set(new MigrationBuilder<>(parent));
         }
 
-        public MigrationBuilder<Parent> migrateProcess(String definitionKey, String definitionVersion) {
+        public MigrationBuilder<Parent> defineMigrationTo(String definitionKey, String definitionVersion) {
             // TODO
             return set(new MigrationBuilder<>(parent));
         }
@@ -67,17 +71,17 @@ public class ProcessMigration {
 
     public static class ScenarioListBuilder<Parent> extends ProcessMigration {
 
-        private final ScenarioBuilder<Parent> parent;
+        private final Parent parent;
 
-        private ScenarioListBuilder(ScenarioBuilder<Parent> parent) {
+        private ScenarioListBuilder(Parent parent) {
             this.parent = parent;
         }
 
-        public ScenarioBuilder<ScenarioListBuilder<Parent>> scenario(String name) {
+        public ScenarioBuilder<ScenarioListBuilder<Parent>> defineScenario(String name) {
             return new ScenarioBuilder<>(this);
         }
 
-        public ScenarioBuilder<Parent> migrate() {
+        public Parent done() {
             // TODO
             return this.parent;
         }
@@ -104,7 +108,7 @@ public class ProcessMigration {
 
         private final ScenarioBuilder<Parent> parent;
 
-        public AbstractManipulationBuilder(ScenarioBuilder<Parent> parent) {
+        private AbstractManipulationBuilder(ScenarioBuilder<Parent> parent) {
             this.parent = parent;
         }
 
@@ -118,7 +122,7 @@ public class ProcessMigration {
             return (This) this;
         }
 
-        public This setVariable(String variableName) {
+        public This setVariable(String variableName, String value) {
             // TODO
             return (This) this;
         }
@@ -130,7 +134,7 @@ public class ProcessMigration {
 
     public static class BeforeMigrationManipulationBuilder<Parent> extends AbstractManipulationBuilder<Parent, BeforeMigrationManipulationBuilder<Parent>> {
 
-        public BeforeMigrationManipulationBuilder(ScenarioBuilder<Parent> parent) {
+        private BeforeMigrationManipulationBuilder(ScenarioBuilder<Parent> parent) {
             super(parent);
         }
 
@@ -141,7 +145,7 @@ public class ProcessMigration {
 
     public static class AfterMigrationManipulationBuilder<Parent> extends AbstractManipulationBuilder<Parent, AfterMigrationManipulationBuilder<Parent>> {
 
-        public AfterMigrationManipulationBuilder(ScenarioBuilder<Parent> parent) {
+        private AfterMigrationManipulationBuilder(ScenarioBuilder<Parent> parent) {
             super(parent);
         }
     }
@@ -164,12 +168,23 @@ public class ProcessMigration {
             return this;
         }
 
-        public Parent migrate() {
+        public Parent done() {
             return this.parent;
         }
     }
 
-    public static ScenarioBuilder<Void> findProcesses(RuntimeService runtimeService) {
-        return new ScenarioBuilder<>(null);
+    public static class ExecutionBuilder {
+
+        public void migrate() {
+            // TODO
+        }
+    }
+
+    private ProcessMigration() {
+
+    }
+
+    public static ScenarioBuilder<ExecutionBuilder> findProcesses(RuntimeService runtimeService) {
+        return new ScenarioBuilder<>(new ExecutionBuilder());
     }
 }
