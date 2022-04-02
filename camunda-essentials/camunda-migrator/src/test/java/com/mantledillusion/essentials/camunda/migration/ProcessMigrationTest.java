@@ -44,6 +44,5 @@ public class ProcessMigrationTest {
                             .done()
                     .done()
                 .migrate();
-        ;
     }
 }

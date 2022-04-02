@@ -2,44 +2,67 @@ package com.mantledillusion.essentials.camunda.migration;
 
 import org.camunda.bpm.engine.RuntimeService;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public abstract class ProcessMigration {
 
-    public static abstract class AbstractFilteringBuilder<This> {
+    private static abstract class AbstractMigrator {
 
-        private AbstractFilteringBuilder() {
+        protected abstract void migrate(RuntimeService runtimeService);
+    }
 
-        }
+    @SuppressWarnings("unchecked")
+    public interface FilteringBuilder<This> {
 
-        public This withDefinitionKey(String definitionKey) {
+        default This withDefinitionKey(String definitionKey) {
             // TODO
             return (This) this;
         }
 
-        public This withVersionTag(String versionTag) {
+        default This withVersionTag(String versionTag) {
             // TODO
             return (This) this;
         }
 
-        public This withActivity(String activityName) {
+        default This withActivity(String activityName) {
             // TODO
             return (This) this;
         }
 
-        public This withVariable(String variableName) {
+        default This withVariable(String variableName) {
             // TODO
             return (This) this;
         }
 
-        public This withVariable(String variableName, String value) {
+        default This withVariable(String variableName, String value) {
             // TODO
             return (This) this;
         }
     }
 
-    public static class ScenarioBuilder<Parent> extends AbstractFilteringBuilder<ScenarioBuilder<Parent>> {
+    public static class ScenarioBuilder<Parent> extends AbstractMigrator implements FilteringBuilder<ScenarioBuilder<Parent>> {
+
+        public static class SubScenarioBuilder<Parent> {
+
+            private final ScenarioBuilder<Parent> scenario;
+
+            private SubScenarioBuilder(ScenarioBuilder<Parent> scenario) {
+                this.scenario = scenario;
+            }
+
+            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) {
+                return this.scenario.add(new ScenarioBuilder<>(this));
+            }
+
+            public Parent done() {
+                // TODO
+                return this.scenario.parent;
+            }
+        }
 
         private final Parent parent;
-        private ProcessMigration migration;
+        private final List<AbstractMigrator> migrators = new ArrayList<>();
 
         private ScenarioBuilder(Parent parent) {
             this.parent = parent;
@@ -49,45 +72,37 @@ public abstract class ProcessMigration {
             return new PredicateBuilder<>(this);
         }
 
-        public ScenarioListBuilder<Parent> defineScenarios() {
-            return set(new ScenarioListBuilder<>(parent));
+        public SubScenarioBuilder<Parent> defineScenarios() {
+            return new SubScenarioBuilder<>(this);
         }
 
         public MigrationBuilder<Parent> defineMigrationTo(String definitionId) {
-            // TODO
-            return set(new MigrationBuilder<>(parent));
+            // TODO overtake given definitionId
+            return add(new MigrationBuilder<>(parent));
         }
 
         public MigrationBuilder<Parent> defineMigrationTo(String definitionKey, String definitionVersion) {
-            // TODO
-            return set(new MigrationBuilder<>(parent));
+            // TODO determine definitionId using key/version
+            return add(new MigrationBuilder<>(parent));
         }
 
-        private <Builder extends ProcessMigration> Builder set(Builder migration) {
-            this.migration = migration;
-            return migration;
-        }
-    }
-
-    public static class ScenarioListBuilder<Parent> extends ProcessMigration {
-
-        private final Parent parent;
-
-        private ScenarioListBuilder(Parent parent) {
-            this.parent = parent;
+        public MigrationBuilder<Parent> defineMigrationTo(String definitionKey, MigrationBuilder.ProcessVersion version) {
+            // TODO determine definitionId using key/version
+            return add(new MigrationBuilder<>(parent));
         }
 
-        public ScenarioBuilder<ScenarioListBuilder<Parent>> defineScenario(String name) {
-            return new ScenarioBuilder<>(this);
+        private <M extends AbstractMigrator> M add(M migrator) {
+            this.migrators.add(migrator);
+            return migrator;
         }
 
-        public Parent done() {
-            // TODO
-            return this.parent;
+        @Override
+        protected void migrate(RuntimeService runtimeService) {
+            this.migrators.forEach(migrator -> migrator.migrate(runtimeService));
         }
     }
 
-    public static class PredicateBuilder<Parent> extends AbstractFilteringBuilder<PredicateBuilder<Parent>> {
+    public static class PredicateBuilder<Parent> implements FilteringBuilder<PredicateBuilder<Parent>> {
 
         private final ScenarioBuilder<Parent> parent;
 
@@ -104,7 +119,8 @@ public abstract class ProcessMigration {
         }
     }
 
-    public static class AbstractManipulationBuilder<Parent, This> {
+    @SuppressWarnings("unchecked")
+    public static abstract class AbstractManipulationBuilder<Parent, This> {
 
         private final ScenarioBuilder<Parent> parent;
 
@@ -150,7 +166,12 @@ public abstract class ProcessMigration {
         }
     }
 
-    public static class MigrationBuilder<Parent> extends ProcessMigration {
+    public static class MigrationBuilder<Parent> extends AbstractMigrator {
+
+        public enum ProcessVersion {
+            EARLIEST,
+            LATEST
+        }
 
         private final Parent parent;
 
@@ -159,24 +180,36 @@ public abstract class ProcessMigration {
         }
 
         public MigrationBuilder<Parent> withDefaultMappings() {
-            // TODO
+            // TODO auto-generate default mappings using camunda
             return this;
         }
 
         public MigrationBuilder<Parent> withMapping(String sourceActivityId, String targetActivityId) {
-            // TODO
+            // TODO add specific mapping
             return this;
         }
 
         public Parent done() {
             return this.parent;
         }
+
+        @Override
+        protected void migrate(RuntimeService runtimeService) {
+            // TODO actually migrate the process in camunda using the gathered mappings
+        }
     }
 
     public static class ExecutionBuilder {
 
+        private final RuntimeService runtimeService;
+        private ScenarioBuilder<ExecutionBuilder> rootScenario;
+
+        public ExecutionBuilder(RuntimeService runtimeService) {
+            this.runtimeService = runtimeService;
+        }
+
         public void migrate() {
-            // TODO
+            this.rootScenario.migrate(this.runtimeService);
         }
     }
 
@@ -185,6 +218,11 @@ public abstract class ProcessMigration {
     }
 
     public static ScenarioBuilder<ExecutionBuilder> findProcesses(RuntimeService runtimeService) {
-        return new ScenarioBuilder<>(new ExecutionBuilder());
+        ExecutionBuilder executionBuilder = new ExecutionBuilder(runtimeService);
+        ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder);
+
+        executionBuilder.rootScenario = scenarioBuilder;
+
+        return scenarioBuilder;
     }
 }
