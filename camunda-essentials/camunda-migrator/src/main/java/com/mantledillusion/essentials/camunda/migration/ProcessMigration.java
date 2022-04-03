@@ -1,5 +1,6 @@
 package com.mantledillusion.essentials.camunda.migration;
 
+import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.migration.MigratingProcessInstanceValidationException;
@@ -245,17 +246,15 @@ public final class ProcessMigration {
 
     public static class ExecutionBuilder {
 
-        private final RepositoryService repositoryService;
-        private final RuntimeService runtimeService;
+        private final ProcessEngine processEngine;
         private ScenarioBuilder<ExecutionBuilder> rootScenario;
 
-        public ExecutionBuilder(RepositoryService repositoryService, RuntimeService runtimeService) {
-            this.repositoryService = repositoryService;
-            this.runtimeService = runtimeService;
+        private ExecutionBuilder(ProcessEngine processEngine) {
+            this.processEngine = processEngine;
         }
 
         public void migrate() {
-            this.rootScenario.migrate(new ProcessMigration(this.repositoryService, this.runtimeService,
+            this.rootScenario.migrate(new ProcessMigration(this.processEngine,
                     // DEFAULT DEFINITION FILTERS
                     new ArrayList<>(Collections.singletonList(
                             ProcessDefinitionQuery::active
@@ -272,20 +271,18 @@ public final class ProcessMigration {
         }
     }
 
-    private final RepositoryService repositoryService;
-    private final RuntimeService runtimeService;
+    private final ProcessEngine processEngine;
     private final List<Consumer<ProcessDefinitionQuery>> definitionFilters;
     private final List<Consumer<ProcessInstanceQuery>> instancePreFilters;
     private final List<BiPredicate<ProcessDefinition, ProcessInstance>> instancePostFilters;
     private final List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments;
 
-    private ProcessMigration(RepositoryService repositoryService, RuntimeService runtimeService,
+    private ProcessMigration(ProcessEngine processEngine,
                              List<Consumer<ProcessDefinitionQuery>> definitionFilters,
                              List<Consumer<ProcessInstanceQuery>> instancePreFilters,
                              List<BiPredicate<ProcessDefinition, ProcessInstance>> instancePostFilters,
                              List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments) {
-        this.repositoryService = repositoryService;
-        this.runtimeService = runtimeService;
+        this.processEngine = processEngine;
         this.definitionFilters = definitionFilters;
         this.instancePreFilters = instancePreFilters;
         this.instancePostFilters = instancePostFilters;
@@ -309,7 +306,7 @@ public final class ProcessMigration {
     }
 
     private ProcessMigration copy() {
-        return new ProcessMigration(this.repositoryService, this.runtimeService,
+        return new ProcessMigration(this.processEngine,
                 new ArrayList<>(this.definitionFilters),
                 new ArrayList<>(this.instancePreFilters),
                 new ArrayList<>(this.instancePostFilters),
@@ -318,7 +315,8 @@ public final class ProcessMigration {
 
     private void migrate() {
         // FILTER TARGET DEFINITIONS IN THE ENGINE
-        ProcessDefinitionQuery definitionQuery = this.repositoryService.createProcessDefinitionQuery();
+        ProcessDefinitionQuery definitionQuery = this.processEngine.getRepositoryService()
+                .createProcessDefinitionQuery();
         this.definitionFilters.forEach(filter -> filter.accept(definitionQuery));
 
         if (definitionQuery.count() != 1) {
@@ -328,18 +326,20 @@ public final class ProcessMigration {
         ProcessDefinition targetDefinition = definitionQuery.list().iterator().next();
 
         // PRE FILTER PROCESSES IN THE ENGINE
-        ProcessInstanceQuery query = this.runtimeService.createProcessInstanceQuery();
+        ProcessInstanceQuery query = this.processEngine.getRuntimeService()
+                .createProcessInstanceQuery();
         this.instancePreFilters.forEach(filter -> filter.accept(query));
         List<ProcessInstance> instances = query.list();
 
         // MIGRATE EVERY INSTANCE
         for (ProcessInstance instance: instances) {
-            ProcessDefinition sourceDefinition = this.repositoryService.getProcessDefinition(instance.getProcessDefinitionId());
+            ProcessDefinition sourceDefinition = this.processEngine.getRepositoryService()
+                    .getProcessDefinition(instance.getProcessDefinitionId());
 
             // POST FILTER PROCESS IN MEMORY
             if (this.instancePostFilters.stream().allMatch(filter -> filter.test(sourceDefinition, instance))) {
                 // CREATE MIGRATION PLAN
-                MigrationPlanBuilder builder = this.runtimeService
+                MigrationPlanBuilder builder = this.processEngine.getRuntimeService()
                         .createMigrationPlan(sourceDefinition.getId(), targetDefinition.getId());
 
                 // ADJUST MIGRATION PLAN
@@ -350,7 +350,7 @@ public final class ProcessMigration {
 
                 // EXECUTE MIGRATION
                 try {
-                    this.runtimeService
+                    this.processEngine.getRuntimeService()
                             .newMigration(plan)
                             .processInstanceIds(instance.getId())
                             .execute();
@@ -361,8 +361,8 @@ public final class ProcessMigration {
         }
     }
 
-    public static ScenarioBuilder<ExecutionBuilder> findProcesses(RepositoryService repositoryService, RuntimeService runtimeService) {
-        ExecutionBuilder executionBuilder = new ExecutionBuilder(repositoryService, runtimeService);
+    public static ScenarioBuilder<ExecutionBuilder> defineScenario(ProcessEngine processEngine) {
+        ExecutionBuilder executionBuilder = new ExecutionBuilder(processEngine);
         ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder);
 
         executionBuilder.rootScenario = scenarioBuilder;
