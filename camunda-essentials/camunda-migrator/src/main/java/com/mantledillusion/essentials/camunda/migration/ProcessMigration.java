@@ -19,6 +19,8 @@ public final class ProcessMigration {
 
     public interface FilteringBuilder<This> {
 
+        This withDefinitionId(String definitionId);
+
         This withDefinitionKey(String definitionKey);
 
         This withVersionTag(String versionTag);
@@ -40,21 +42,28 @@ public final class ProcessMigration {
                 this.scenario = scenario;
             }
 
-            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) {
-                return this.scenario.addMigrator(new ScenarioBuilder<>(this)); // TODO note name for report
+            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) { // TODO note name for report
+                ScenarioBuilder<SubScenarioBuilder<Parent>> scenarioBuilder = new ScenarioBuilder<>(this);
+                this.scenario.addMigrator(scenarioBuilder::migrate);
+                return scenarioBuilder;
             }
 
-            public Parent done() {
+            public Parent finalizeScenarios() {
                 return this.scenario.parent;
             }
         }
 
         private final Parent parent;
         private final List<Consumer<ProcessMigration>> adaptors = new ArrayList<>();
-        private final List<ScenarioBuilder<?>> migrators = new ArrayList<>();
+        private final List<Consumer<ProcessMigration>> migrators = new ArrayList<>();
 
         private ScenarioBuilder(Parent parent) {
             this.parent = parent;
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> withDefinitionId(String definitionId) {
+            return addAdaptor(migration -> migration.addProcessPreFilter(query -> query.processDefinitionId(definitionId)));
         }
 
         @Override
@@ -82,8 +91,8 @@ public final class ProcessMigration {
             return addAdaptor(migration -> migration.addProcessPreFilter(query -> query.variableValueEquals(variableName, value)));
         }
 
-        public PredicateBuilder<Parent> when(String name) {
-            return new PredicateBuilder<>(this); // TODO note name for report
+        public PredicateBuilder<Parent> when(String name) {// TODO note name for report
+            return new PredicateBuilder<>(this);
         }
 
         public ScenarioBuilder<Parent> toDefinitionId(String definitionId) {
@@ -118,7 +127,8 @@ public final class ProcessMigration {
             return new SubScenarioBuilder<>(this);
         }
 
-        public Parent done() {
+        public Parent finalizeScenario() {
+            addMigrator(ProcessMigration::migrate);
             return this.parent;
         }
 
@@ -127,16 +137,15 @@ public final class ProcessMigration {
             return this;
         }
 
-        private <M extends ScenarioBuilder<?>> M addMigrator(M migrator) {
+        private <M extends Consumer<ProcessMigration>> void addMigrator(M migrator) {
             this.migrators.add(migrator);
-            return migrator;
         }
 
         private void migrate(ProcessMigration processMigration) {
             Stream.of(processMigration)
                     .map(ProcessMigration::copy)
-                    .peek(filter -> this.adaptors.forEach(adaptor -> adaptor.accept(filter)))
-                    .forEach(filter -> this.migrators.forEach(migrator -> migrator.migrate(filter)));
+                    .peek(migration -> this.adaptors.forEach(adaptor -> adaptor.accept(migration)))
+                    .forEach(migration -> this.migrators.forEach(migrator -> migrator.accept(migration)));
         }
     }
 
@@ -146,6 +155,11 @@ public final class ProcessMigration {
 
         private PredicateBuilder(ScenarioBuilder<Parent> parent) {
             this.parent = parent;
+        }
+
+        @Override
+        public PredicateBuilder<Parent> withDefinitionId(String definitionId) {
+            return null; // TODO
         }
 
         @Override
@@ -206,7 +220,7 @@ public final class ProcessMigration {
             return (This) this;
         }
 
-        public ScenarioBuilder<Parent> done() {
+        public ScenarioBuilder<Parent> then() {
             return this.parent;
         }
     }
@@ -218,7 +232,7 @@ public final class ProcessMigration {
         }
 
         public AfterMigrationManipulationBuilder<Parent> afterMigrate() {
-            return new AfterMigrationManipulationBuilder<>(this.done());
+            return new AfterMigrationManipulationBuilder<>(this.then());
         }
     }
 
@@ -241,24 +255,41 @@ public final class ProcessMigration {
         }
 
         public void migrate() {
-            this.rootScenario.migrate(new ProcessMigration(repositoryService, runtimeService));
+            this.rootScenario.migrate(new ProcessMigration(this.repositoryService, this.runtimeService,
+                    // DEFAULT DEFINITION FILTERS
+                    new ArrayList<>(Collections.singletonList(
+                            ProcessDefinitionQuery::active
+                    )),
+                    // DEFAULT INSTANCE PRE FILTERS
+                    new ArrayList<>(Collections.singletonList(
+                            ProcessInstanceQuery::active
+                    )),
+                    // DEFAULT INSTANCE POST FILTERS
+                    new ArrayList<>(),
+                    // DEFAULT MIGRATION PLAN ADJUSTMENTS
+                    new ArrayList<>()
+            ));
         }
     }
 
     private final RepositoryService repositoryService;
     private final RuntimeService runtimeService;
-    private final List<Consumer<ProcessDefinitionQuery>> definitionFilters = new ArrayList<>(Collections.singletonList(
-            ProcessDefinitionQuery::active
-    ));
-    private final List<Consumer<ProcessInstanceQuery>> preFilters = new ArrayList<>(Collections.singletonList(
-            ProcessInstanceQuery::active
-    ));
-    private final List<BiPredicate<ProcessDefinition, ProcessInstance>> postFilters = new ArrayList<>();
-    private final List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments = new ArrayList<>();
+    private final List<Consumer<ProcessDefinitionQuery>> definitionFilters;
+    private final List<Consumer<ProcessInstanceQuery>> instancePreFilters;
+    private final List<BiPredicate<ProcessDefinition, ProcessInstance>> instancePostFilters;
+    private final List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments;
 
-    private ProcessMigration(RepositoryService repositoryService, RuntimeService runtimeService) {
+    private ProcessMigration(RepositoryService repositoryService, RuntimeService runtimeService,
+                             List<Consumer<ProcessDefinitionQuery>> definitionFilters,
+                             List<Consumer<ProcessInstanceQuery>> instancePreFilters,
+                             List<BiPredicate<ProcessDefinition, ProcessInstance>> instancePostFilters,
+                             List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments) {
         this.repositoryService = repositoryService;
         this.runtimeService = runtimeService;
+        this.definitionFilters = definitionFilters;
+        this.instancePreFilters = instancePreFilters;
+        this.instancePostFilters = instancePostFilters;
+        this.migrationPlanAdjustments = migrationPlanAdjustments;
     }
 
     private void addDefinitionFilter(Consumer<ProcessDefinitionQuery> definitionFilter) {
@@ -266,11 +297,11 @@ public final class ProcessMigration {
     }
 
     private void addProcessPreFilter(Consumer<ProcessInstanceQuery> preFilter) {
-        this.preFilters.add(preFilter);
+        this.instancePreFilters.add(preFilter);
     }
 
     private void addProcessPostFilter(BiPredicate<ProcessDefinition, ProcessInstance> postFilter) {
-        this.postFilters.add(postFilter);
+        this.instancePostFilters.add(postFilter);
     }
 
     private void addMigrationPlanAdjustment(Consumer<MigrationPlanBuilder> adjustment) {
@@ -278,50 +309,54 @@ public final class ProcessMigration {
     }
 
     private ProcessMigration copy() {
-        return null; // TODO
+        return new ProcessMigration(this.repositoryService, this.runtimeService,
+                new ArrayList<>(this.definitionFilters),
+                new ArrayList<>(this.instancePreFilters),
+                new ArrayList<>(this.instancePostFilters),
+                new ArrayList<>(this.migrationPlanAdjustments));
     }
 
     private void migrate() {
         // FILTER TARGET DEFINITIONS IN THE ENGINE
         ProcessDefinitionQuery definitionQuery = this.repositoryService.createProcessDefinitionQuery();
         this.definitionFilters.forEach(filter -> filter.accept(definitionQuery));
-        List<ProcessDefinition> targetDefinitions = definitionQuery.listPage(0, 2);
 
-        ProcessDefinition targetDefinition;
-        if (targetDefinitions.isEmpty()) {
-            // REPORT
+        if (definitionQuery.count() != 1) {
+            // TODO REPORT
             return;
-        } else if (targetDefinitions.size() > 1) {
-            // REPORT
-            return;
-        } else {
-            targetDefinition = targetDefinitions.iterator().next();
         }
+        ProcessDefinition targetDefinition = definitionQuery.list().iterator().next();
 
         // PRE FILTER PROCESSES IN THE ENGINE
         ProcessInstanceQuery query = this.runtimeService.createProcessInstanceQuery();
-
-        // RETRIEVE
+        this.instancePreFilters.forEach(filter -> filter.accept(query));
         List<ProcessInstance> instances = query.list();
-
-        // POST FILTER PROCESSES IN MEMORY
 
         // MIGRATE EVERY INSTANCE
         for (ProcessInstance instance: instances) {
-            MigrationPlanBuilder builder = this.runtimeService
-                    .createMigrationPlan(instance.getProcessDefinitionId(), targetDefinition.getId());
+            ProcessDefinition sourceDefinition = this.repositoryService.getProcessDefinition(instance.getProcessDefinitionId());
 
-            this.migrationPlanAdjustments.forEach(adjustment -> adjustment.accept(builder));
+            // POST FILTER PROCESS IN MEMORY
+            if (this.instancePostFilters.stream().allMatch(filter -> filter.test(sourceDefinition, instance))) {
+                // CREATE MIGRATION PLAN
+                MigrationPlanBuilder builder = this.runtimeService
+                        .createMigrationPlan(sourceDefinition.getId(), targetDefinition.getId());
 
-            MigrationPlan plan = builder.build();
+                // ADJUST MIGRATION PLAN
+                this.migrationPlanAdjustments.forEach(adjustment -> adjustment.accept(builder));
 
-            try {
-                this.runtimeService
-                        .newMigration(plan)
-                        .processInstanceIds(instance.getId())
-                        .execute();
-            } catch (MigratingProcessInstanceValidationException e) {
-                // TODO REPORT
+                // BUILD MIGRATION PLAN
+                MigrationPlan plan = builder.build();
+
+                // EXECUTE MIGRATION
+                try {
+                    this.runtimeService
+                            .newMigration(plan)
+                            .processInstanceIds(instance.getId())
+                            .execute();
+                } catch (MigratingProcessInstanceValidationException e) {
+                    // TODO REPORT
+                }
             }
         }
     }

@@ -24,6 +24,20 @@
 			<artifactId>camunda-engine</artifactId>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Test Dependencies -->
+		<dependency>
+			<groupId>org.camunda.bpm.extension</groupId>
+			<artifactId>camunda-bpm-junit5</artifactId>
+			<version>1.0.2</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<version>1.4.200</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 	
 	<build>
