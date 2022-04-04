@@ -8,10 +8,14 @@ import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.repository.ProcessDefinitionQuery;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.camunda.bpm.engine.runtime.ProcessInstanceQuery;
+import org.camunda.commons.utils.StringUtil;
 
 import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public final class ProcessMigration {
@@ -45,8 +49,8 @@ public final class ProcessMigration {
                 return defineScenario("unnamed");
             }
 
-            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) { // TODO note name for report
-                ScenarioBuilder<SubScenarioBuilder<Parent>> scenarioBuilder = new ScenarioBuilder<>(this);
+            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) {
+                ScenarioBuilder<SubScenarioBuilder<Parent>> scenarioBuilder = new ScenarioBuilder<>(this, name);
                 this.scenario.addMigrator(scenarioBuilder::migrate);
                 return scenarioBuilder;
             }
@@ -57,11 +61,13 @@ public final class ProcessMigration {
         }
 
         private final Parent parent;
+        private final String name;
         private final List<Consumer<ProcessMigration>> adaptors = new ArrayList<>();
-        private final List<Consumer<ProcessMigration>> migrators = new ArrayList<>();
+        private final List<Function<ProcessMigration, Report>> migrators = new ArrayList<>();
 
-        private ScenarioBuilder(Parent parent) {
+        private ScenarioBuilder(Parent parent, String name) {
             this.parent = parent;
+            this.name = name;
         }
 
         @Override
@@ -140,15 +146,19 @@ public final class ProcessMigration {
             return this;
         }
 
-        private <M extends Consumer<ProcessMigration>> void addMigrator(M migrator) {
+        private <M extends Function<ProcessMigration, Report>> void addMigrator(M migrator) {
             this.migrators.add(migrator);
         }
 
-        private void migrate(ProcessMigration processMigration) {
+        private BranchReport migrate(ProcessMigration processMigration) {
+            BranchReport scenarioReport = new BranchReport("Scenario: " + this.name);
             Stream.of(processMigration)
                     .map(ProcessMigration::copy)
                     .peek(migration -> this.adaptors.forEach(adaptor -> adaptor.accept(migration)))
-                    .forEach(migration -> this.migrators.forEach(migrator -> migrator.accept(migration)));
+                    .forEach(migration -> this.migrators.stream()
+                            .map(migrator -> migrator.apply(migration))
+                            .forEach(scenarioReport.children::add));
+            return scenarioReport;
         }
     }
 
@@ -258,9 +268,9 @@ public final class ProcessMigration {
             return defineScenario("root");
         }
 
-        public ScenarioBuilder<ExecutionBuilder> defineScenario(String name) { // TODO note name for report
+        public ScenarioBuilder<ExecutionBuilder> defineScenario(String name) {
             ExecutionBuilder executionBuilder = new ExecutionBuilder(this.processEngine);
-            ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder);
+            ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder, name);
 
             executionBuilder.rootScenario = scenarioBuilder;
 
@@ -277,8 +287,8 @@ public final class ProcessMigration {
             this.processEngine = processEngine;
         }
 
-        public void migrate() {
-            this.rootScenario.migrate(new ProcessMigration(this.processEngine,
+        public Report migrate() {
+            return this.rootScenario.migrate(new ProcessMigration(this.processEngine,
                     // DEFAULT DEFINITION FILTERS
                     new ArrayList<>(Collections.singletonList(
                             ProcessDefinitionQuery::active
@@ -292,6 +302,116 @@ public final class ProcessMigration {
                     // DEFAULT MIGRATION PLAN ADJUSTMENTS
                     new ArrayList<>()
             ));
+        }
+    }
+
+    public static abstract class Report {
+
+        public enum Result {
+            SUCCESS(true, "(ok) "),
+            IGNORE(true, "(ign)"),
+            FAILURE(false, "(nok)");
+
+            private final boolean success;
+            private final String print;
+
+            Result(boolean success, String print) {
+                this.success = success;
+                this.print = print;
+            }
+        }
+
+        private final String name;
+
+        private Report(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return this.name;
+        }
+
+        public abstract Result getResult();
+
+        public boolean isSuccess() {
+            return getResult().success;
+        }
+
+        public abstract List<Report> getChildren();
+
+        @Override
+        public final String toString() {
+            return toString(0);
+        }
+
+        protected String getPadding(int layer) {
+            return IntStream.range(0, layer).mapToObj(i -> "  ").reduce(String::concat).orElse("");
+        }
+
+        protected abstract String toString(int layer);
+    }
+
+    public static final class BranchReport extends Report {
+
+        private final List<Report> children = new ArrayList<>();
+
+        private BranchReport(String name) {
+            super(name);
+        }
+
+        private <C extends Report> C add(C child) {
+            this.children.add(child);
+            return child;
+        }
+
+        @Override
+        public Result getResult() {
+            return this.children.stream()
+                    .map(Report::getResult)
+                    .reduce((result, result2) -> result.ordinal() > result2.ordinal() ? result : result2)
+                    .orElse(Result.IGNORE);
+        }
+
+        @Override
+        public List<Report> getChildren() {
+            return this.children;
+        }
+
+        @Override
+        protected String toString(int layer) {
+            String[] report = Stream
+                    .concat(
+                            Stream.of(getPadding(layer) + getName()),
+                            this.children.stream().map(child -> child.toString(layer+1))
+                    )
+                    .toArray(String[]::new);
+
+            return StringUtil.join("\n", report);
+        }
+    }
+
+    public static final class LeafReport extends Report {
+
+        private final Result result;
+
+        public LeafReport(String name, Result result) {
+            super(name);
+            this.result = result;
+        }
+
+        @Override
+        public Result getResult() {
+            return this.result;
+        }
+
+        @Override
+        public List<Report> getChildren() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        protected String toString(int layer) {
+            return getPadding(layer) + result.print + ' ' + getName();
         }
     }
 
@@ -337,52 +457,72 @@ public final class ProcessMigration {
                 new ArrayList<>(this.migrationPlanAdjustments));
     }
 
-    private void migrate() {
+    private Report migrate() {
         // FILTER TARGET DEFINITIONS IN THE ENGINE
         ProcessDefinitionQuery definitionQuery = this.processEngine.getRepositoryService()
                 .createProcessDefinitionQuery();
         this.definitionFilters.forEach(filter -> filter.accept(definitionQuery));
 
+        BranchReport migrationReport = new BranchReport("Migration: Definition X"); // TODO REPORT
         if (definitionQuery.count() != 1) {
-            // TODO REPORT
-            return;
-        }
-        ProcessDefinition targetDefinition = definitionQuery.list().iterator().next();
+            migrationReport.add(new LeafReport("Found " + definitionQuery.count() + " definitions matching definition filters", Report.Result.FAILURE));
+        } else {
+            ProcessDefinition targetDefinition = definitionQuery.list().iterator().next();
+            migrationReport.add(new LeafReport("Found definition " + targetDefinition.getId() + " matching definition filters", Report.Result.SUCCESS));
 
-        // PRE FILTER PROCESSES IN THE ENGINE
-        ProcessInstanceQuery query = this.processEngine.getRuntimeService()
-                .createProcessInstanceQuery();
-        this.instancePreFilters.forEach(filter -> filter.accept(query));
-        List<ProcessInstance> instances = query.list();
+            // PRE FILTER PROCESSES IN THE ENGINE
+            ProcessInstanceQuery query = this.processEngine.getRuntimeService()
+                    .createProcessInstanceQuery();
+            this.instancePreFilters.forEach(filter -> filter.accept(query));
 
-        // MIGRATE EVERY INSTANCE
-        for (ProcessInstance instance: instances) {
-            ProcessDefinition sourceDefinition = this.processEngine.getRepositoryService()
-                    .getProcessDefinition(instance.getProcessDefinitionId());
+            // POST FILTER PROCESSES IN MEMORY
+            List<ProcessInstance> instances = query.list().stream()
+                    .filter(instance -> {
+                        ProcessDefinition sourceDefinition = this.processEngine.getRepositoryService()
+                                .getProcessDefinition(instance.getProcessDefinitionId());
 
-            // POST FILTER PROCESS IN MEMORY
-            if (this.instancePostFilters.stream().allMatch(filter -> filter.test(sourceDefinition, instance))) {
-                // CREATE MIGRATION PLAN
-                MigrationPlanBuilder builder = this.processEngine.getRuntimeService()
-                        .createMigrationPlan(sourceDefinition.getId(), targetDefinition.getId());
+                        return this.instancePostFilters.stream().allMatch(filter -> filter.test(sourceDefinition, instance));
+                    })
+                    .collect(Collectors.toList());
 
-                // ADJUST MIGRATION PLAN
-                this.migrationPlanAdjustments.forEach(adjustment -> adjustment.accept(builder));
+            // MIGRATE INSTANCES
+            if (instances.isEmpty()) {
+                migrationReport.add(new LeafReport("Found no instances matching instance filters", Report.Result.IGNORE));
+            } else {
+                migrationReport.add(new LeafReport("Found " + instances.size() + " instance(s) matching instance filters", Report.Result.SUCCESS));
 
-                // BUILD MIGRATION PLAN
-                MigrationPlan plan = builder.build();
+                // MIGRATE EVERY INSTANCE
+                for (ProcessInstance instance: instances) {
+                    BranchReport instanceReport = migrationReport.add(new BranchReport("Instance: " + instance.getId()));
 
-                // EXECUTE MIGRATION
-                try {
-                    this.processEngine.getRuntimeService()
-                            .newMigration(plan)
-                            .processInstanceIds(instance.getId())
-                            .execute();
-                } catch (MigratingProcessInstanceValidationException e) {
-                    // TODO REPORT
+                    // CREATE MIGRATION PLAN
+                    MigrationPlanBuilder builder = this.processEngine.getRuntimeService()
+                            .createMigrationPlan(instance.getProcessDefinitionId(), targetDefinition.getId());
+
+                    // ADJUST MIGRATION PLAN
+                    this.migrationPlanAdjustments.forEach(adjustment -> adjustment.accept(builder));
+
+                    // BUILD MIGRATION PLAN
+                    MigrationPlan plan = builder.build();
+
+                    // EXECUTE MIGRATION
+                    try {
+                        long ms = System.currentTimeMillis();
+                        this.processEngine.getRuntimeService()
+                                .newMigration(plan)
+                                .processInstanceIds(instance.getId())
+                                .execute();
+                        ms = System.currentTimeMillis() - ms;
+
+                        instanceReport.add(new LeafReport("Instance migration successful in " + ms + "ms", Report.Result.SUCCESS));
+                    } catch (MigratingProcessInstanceValidationException e) {
+                        instanceReport.add(new LeafReport("Instance migration failed: " + e.getMessage(), Report.Result.FAILURE));
+                    }
                 }
             }
         }
+
+        return migrationReport;
     }
 
     public static EngineBuilder in(ProcessEngine processEngine) {
