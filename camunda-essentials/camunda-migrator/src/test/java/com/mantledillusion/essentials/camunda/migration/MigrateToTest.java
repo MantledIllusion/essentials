@@ -21,12 +21,13 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateToDefinitionId() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
@@ -40,12 +41,13 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateToLatestDefinitionKey() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
@@ -60,12 +62,13 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateToSpecificDefinitionKey() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
@@ -80,16 +83,17 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateToTaggedDefinitionKey() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
-                .toDefinitionTag(REV2)
+                .toDefinitionTag(Processes.Common.VersionTags.REV2)
                 .finalizeScenario()
                 .migrate();
 

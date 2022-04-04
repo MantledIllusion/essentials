@@ -21,12 +21,13 @@ public class MigrateWithTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateWithDefinitionId() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
@@ -40,12 +41,13 @@ public class MigrateWithTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateWithAnyDefinitionKey() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
@@ -59,12 +61,13 @@ public class MigrateWithTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateWithSpecificDefinitionKey() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .withVersion(sourceDefinition.getVersion())
                 .usingDefaultMappings()
@@ -79,14 +82,15 @@ public class MigrateWithTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateWithTaggedDefinitionKey() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
-                .withVersionTag(REV1)
+                .withVersionTag(Processes.Common.VersionTags.REV1)
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
                 .finalizeScenario()
@@ -99,12 +103,13 @@ public class MigrateWithTest extends AbstractProcessMigrationTest {
 
     @Test
     public void testMigrateWithActivity() {
-        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV1);
+        ProcessDefinition sourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance instanceBefore = start(sourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
 
         ProcessMigration
-                .defineScenario(engine)
+                .in(engine)
+                .defineScenario()
                 .withActivity(Processes.RelabelActivity.Activities.RELABELED_ACTIVITY)
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())

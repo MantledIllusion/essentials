@@ -1,8 +1,6 @@
 package com.mantledillusion.essentials.camunda.migration;
 
 import org.camunda.bpm.engine.ProcessEngine;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.migration.MigratingProcessInstanceValidationException;
 import org.camunda.bpm.engine.migration.MigrationPlan;
 import org.camunda.bpm.engine.migration.MigrationPlanBuilder;
@@ -41,6 +39,10 @@ public final class ProcessMigration {
 
             private SubScenarioBuilder(ScenarioBuilder<Parent> scenario) {
                 this.scenario = scenario;
+            }
+
+            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario() {
+                return defineScenario("unnamed");
             }
 
             public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String name) { // TODO note name for report
@@ -244,6 +246,28 @@ public final class ProcessMigration {
         }
     }
 
+    public static class EngineBuilder {
+
+        private final ProcessEngine processEngine;
+
+        private EngineBuilder(ProcessEngine processEngine) {
+            this.processEngine = processEngine;
+        }
+
+        public ScenarioBuilder<ExecutionBuilder> defineScenario() {
+            return defineScenario("root");
+        }
+
+        public ScenarioBuilder<ExecutionBuilder> defineScenario(String name) { // TODO note name for report
+            ExecutionBuilder executionBuilder = new ExecutionBuilder(this.processEngine);
+            ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder);
+
+            executionBuilder.rootScenario = scenarioBuilder;
+
+            return scenarioBuilder;
+        }
+    }
+
     public static class ExecutionBuilder {
 
         private final ProcessEngine processEngine;
@@ -361,12 +385,7 @@ public final class ProcessMigration {
         }
     }
 
-    public static ScenarioBuilder<ExecutionBuilder> defineScenario(ProcessEngine processEngine) {
-        ExecutionBuilder executionBuilder = new ExecutionBuilder(processEngine);
-        ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder);
-
-        executionBuilder.rootScenario = scenarioBuilder;
-
-        return scenarioBuilder;
+    public static EngineBuilder in(ProcessEngine processEngine) {
+        return new EngineBuilder(processEngine);
     }
 }

@@ -12,6 +12,16 @@ public abstract class AbstractProcessMigrationTest {
 
     public interface Processes {
 
+        interface Common {
+
+            interface VersionTags {
+
+                String REV1 = "rev1";
+                String REV2 = "rev2";
+                String REV3 = "rev3";
+            }
+        }
+
         interface Unaffected {
 
             String DEFINITION_KEY = "unaffected";
@@ -26,10 +36,18 @@ public abstract class AbstractProcessMigrationTest {
                 String RELABELED_ACTIVITY = "relabeled_activity";
             }
         }
-    }
 
-    public static final String REV1 = "rev1";
-    public static final String REV2 = "rev2";
+        interface RenamedActivity {
+
+            String DEFINITION_KEY = "rename-activity";
+
+            interface Activities {
+
+                String RENAMED_ACTIVITY_BEFORE = "renamed_activity_before";
+                String RENAMED_ACTIVITY_AFTER = "renamed_activity_after";
+            }
+        }
+    }
 
     protected abstract ProcessEngine getEngine();
     private String unaffectedDefinitionId;
@@ -40,7 +58,7 @@ public abstract class AbstractProcessMigrationTest {
         getEngine().getRepositoryService().createDeploymentQuery().list()
                 .forEach(deployment -> getEngine().getRepositoryService().deleteDeployment(deployment.getId(), true));
 
-        unaffectedDefinitionId = deploy(Processes.Unaffected.DEFINITION_KEY, REV1).getId();
+        unaffectedDefinitionId = deploy(Processes.Unaffected.DEFINITION_KEY, Processes.Common.VersionTags.REV1).getId();
         unaffectedInstanceId = start(unaffectedDefinitionId).getId();
     }
 
