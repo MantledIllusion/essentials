@@ -6,6 +6,8 @@ import org.camunda.bpm.engine.runtime.ProcessInstance;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public abstract class AbstractProcessMigrationTest {
@@ -13,6 +15,12 @@ public abstract class AbstractProcessMigrationTest {
     public interface Processes {
 
         interface Common {
+
+            interface Variables {
+
+                String INT = "intVar";
+                String STRING = "stringVar";
+            }
 
             interface VersionTags {
 
@@ -45,6 +53,18 @@ public abstract class AbstractProcessMigrationTest {
 
                 String RENAMED_ACTIVITY_BEFORE = "renamed_activity_before";
                 String RENAMED_ACTIVITY_AFTER = "renamed_activity_after";
+            }
+        }
+
+        interface SplitActivity {
+
+            String DEFINITION_KEY = "split-activity";
+
+            interface Activities {
+
+                String DELETED_ACTIVITY = "deleted_activity";
+                String FOO = "foo_activity";
+                String BAR = "bar_activity";
             }
         }
     }
@@ -80,6 +100,11 @@ public abstract class AbstractProcessMigrationTest {
     protected ProcessInstance start(String definitionId) {
         return getEngine().getRuntimeService()
                 .startProcessInstanceById(definitionId);
+    }
+
+    protected ProcessInstance start(String definitionId, Map<String, Object> variables) {
+        return getEngine().getRuntimeService()
+                .startProcessInstanceById(definitionId, variables);
     }
 
     protected ProcessInstance get(String instanceId) {

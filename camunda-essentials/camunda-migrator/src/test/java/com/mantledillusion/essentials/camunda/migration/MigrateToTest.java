@@ -28,7 +28,7 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
         ProcessMigration
                 .in(engine)
                 .defineScenario()
-                .withDefinitionId(sourceDefinition.getId())
+                .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
                 .finalizeScenario()
@@ -48,7 +48,7 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
         ProcessMigration
                 .in(engine)
                 .defineScenario()
-                .withDefinitionId(sourceDefinition.getId())
+                .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toLatestDefinitionVersion()
@@ -69,7 +69,7 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
         ProcessMigration
                 .in(engine)
                 .defineScenario()
-                .withDefinitionId(sourceDefinition.getId())
+                .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toSpecificDefinitionVersion(targetDefinition.getVersion())
@@ -90,7 +90,7 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
         ProcessMigration
                 .in(engine)
                 .defineScenario()
-                .withDefinitionId(sourceDefinition.getId())
+                .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toDefinitionTag(Processes.Common.VersionTags.REV2)

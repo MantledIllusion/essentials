@@ -28,7 +28,7 @@ public class MigrateUsingTest extends AbstractProcessMigrationTest {
         ProcessMigration
                 .in(engine)
                 .defineScenario()
-                .withDefinitionId(sourceDefinition.getId())
+                .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
                 .finalizeScenario()
@@ -48,7 +48,7 @@ public class MigrateUsingTest extends AbstractProcessMigrationTest {
         ProcessMigration
                 .in(engine)
                 .defineScenario()
-                .withDefinitionId(sourceDefinition.getId())
+                .whereDefinitionId(sourceDefinition.getId())
                 .usingMapping(Processes.RenamedActivity.Activities.RENAMED_ACTIVITY_BEFORE, Processes.RenamedActivity.Activities.RENAMED_ACTIVITY_AFTER)
                 .toDefinitionId(targetDefinition.getId())
                 .finalizeScenario()

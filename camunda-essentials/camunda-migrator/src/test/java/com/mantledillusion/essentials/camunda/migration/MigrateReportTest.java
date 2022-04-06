@@ -33,33 +33,33 @@ public class MigrateReportTest extends AbstractProcessMigrationTest {
         ProcessMigration.Report report = ProcessMigration
                 .in(engine)
                 .defineScenario(NAME_ROOT)
-                .withDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
+                .whereDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .usingDefaultMappings()
                 .defineScenarios()
                     .defineScenario(NAME_1_TO_2)
-                        .withVersionTag(Processes.Common.VersionTags.REV1)
+                        .whereVersionTag(Processes.Common.VersionTags.REV1)
                         .toDefinitionTag(Processes.Common.VersionTags.REV2)
                         .finalizeScenario()
                     .defineScenario(NAME_2_TO_3)
-                        .withVersionTag(Processes.Common.VersionTags.REV2)
+                        .whereVersionTag(Processes.Common.VersionTags.REV2)
                         .toDefinitionTag(Processes.Common.VersionTags.REV3)
                         .finalizeScenario()
                     .finalizeScenarios()
                 .migrate();
 
-        assertEquals("Scenario: " + NAME_ROOT, report.getName());
+        assertEquals("Scenario: " + NAME_ROOT, report.getTitle());
         assertTrue(report.isSuccess());
         assertEquals(ProcessMigration.Report.Result.SUCCESS, report.getResult());
         assertEquals(2, report.getChildren().size());
 
         ProcessMigration.Report child = report.getChildren().get(0);
-        assertEquals("Scenario: " + NAME_1_TO_2, child.getName());
+        assertEquals("Scenario: " + NAME_1_TO_2, child.getTitle());
         assertTrue(child.isSuccess());
         assertEquals(ProcessMigration.Report.Result.SUCCESS, child.getResult());
 
         child = report.getChildren().get(1);
-        assertEquals("Scenario: " + NAME_2_TO_3, child.getName());
+        assertEquals("Scenario: " + NAME_2_TO_3, child.getTitle());
         assertTrue(child.isSuccess());
         assertEquals(ProcessMigration.Report.Result.SUCCESS, child.getResult());
     }
