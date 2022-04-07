@@ -50,17 +50,14 @@ public class MigrateReportTest extends AbstractProcessMigrationTest {
 
         assertEquals("Scenario: " + NAME_ROOT, report.getTitle());
         assertTrue(report.isSuccess());
-        assertEquals(ProcessMigration.Report.Result.SUCCESS, report.getResult());
         assertEquals(2, report.getChildren().size());
 
         ProcessMigration.Report child = report.getChildren().get(0);
         assertEquals("Scenario: " + NAME_1_TO_2, child.getTitle());
         assertTrue(child.isSuccess());
-        assertEquals(ProcessMigration.Report.Result.SUCCESS, child.getResult());
 
         child = report.getChildren().get(1);
         assertEquals("Scenario: " + NAME_2_TO_3, child.getTitle());
         assertTrue(child.isSuccess());
-        assertEquals(ProcessMigration.Report.Result.SUCCESS, child.getResult());
     }
 }
