@@ -72,7 +72,7 @@ public class MigrateFailureTest extends AbstractProcessMigrationTest {
         ProcessInstance renamedInstanceBefore = start(renamedSourceDefinition.getId());
         ProcessDefinition relabeledSourceDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV1);
         ProcessInstance relabeledInstanceBefore = start(relabeledSourceDefinition.getId());
-        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV2);
+        ProcessDefinition targetDefinition = deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV3);
 
         ProcessMigration
                 .in(engine)
