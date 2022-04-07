@@ -317,7 +317,7 @@ public final class ProcessMigration {
         /**
          * Use the default activity mappings between the source and target process definitions.
          *
-         * @see MigrationPlanBuilder##mapEqualActivities
+         * @see MigrationPlanBuilder#mapEqualActivities
          * @return this
          */
         public ScenarioBuilder<Parent> usingDefaultMappings() {
@@ -1351,6 +1351,13 @@ public final class ProcessMigration {
         return referenceId;
     }
 
+    /**
+     * Begin building a new migration.
+     *
+     * @param processEngine The {@link ProcessEngine} to migrate in; might <b>not</b> be null.
+     * @return A new {@link EngineBuilder}, never null
+     *
+     */
     public static EngineBuilder in(ProcessEngine processEngine) {
         return new EngineBuilder(processEngine);
     }
