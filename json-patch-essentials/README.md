@@ -36,7 +36,7 @@ The **_PatchUtil_** simply allows applying patches onto a given object instance,
 ```java
 Pojo objectBefore = new Pojo();
 
-Pojo objectAfter = PatchUtil.apply(patches);
+Pojo objectAfter = PatchUtil.apply(objectBefore, patches);
 ```
 
 ## Permitting changes to unmodifiable values
