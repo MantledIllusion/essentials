@@ -83,7 +83,9 @@ public class GraphEssentials {
         Map<IdType, Set<IdType>> neighborRegistry = new HashMap<>();
         nodes.forEach(node -> {
             Set<IdType> neighbors = node.getNeighbors();
-            if (neighbors != null) {
+            if (neighbors == null || neighbors.isEmpty()) {
+                neighborRegistry.put(node.getIdentifier(), new HashSet<>());
+            } else {
                 for (IdType neighbor: neighbors) {
                     if (!nodeRegistry.containsKey(neighbor)) {
                         throw new IllegalArgumentException(String.format("The neighbor %s of node %s is unknown",
