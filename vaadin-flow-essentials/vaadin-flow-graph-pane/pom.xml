@@ -10,7 +10,7 @@
 	</parent>
 	
 	<artifactId>vaadin-flow-graph-pane</artifactId>
-	<version>1.1.3-SNAPSHOT</version>
+	<version>1.1.3</version>
 	<packaging>jar</packaging>
 	
 	<name>Vaadin Flow Graph Pane</name>
