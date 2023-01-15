@@ -29,4 +29,15 @@ public interface MatchedFilterInputPart extends InputPart {
     default String getInvalidLabel(String value) {
         return null;
     }
+
+    /**
+     * Returns the priority of the part against other part when listing {@link MatchedFilter}s.
+     * <p>
+     * The lower the value the higher the priority.
+     *
+     * @return the priority, 0 by default
+     */
+    default long getPriority() {
+        return 0L;
+    }
 }

@@ -6,15 +6,15 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.contextmenu.SubMenu;
-import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Label;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.menubar.MenuBar;
+import com.vaadin.flow.component.menubar.MenuBarVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.provider.ListDataProvider;
-import com.vaadin.flow.data.renderer.TextRenderer;
+import com.vaadin.flow.data.provider.CallbackDataProvider;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.shared.Registration;
 
 import java.util.*;
@@ -22,17 +22,56 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Component for building the most complex filter constellations on-the-fly in the UI.
  * <p>
  * Uses Collo's {@link InputAnalyzer} for realtime input categorization.
  *
- * @param <G> The {@link Enum} representing the input groups (for example a name, an address, a specific ID, ...).
+ * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
+ *           (for example a name, an address, a specific ID, ...).
  * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
  *           the input groups (a first name, a last name, a company name, a zip code, ...).
  */
-public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInputPart> extends Composite<Component> implements HasSize {
+public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> extends Composite<Component> implements HasSize {
+
+    private class MatchedFilterQuery {
+
+        private final List<MatchedFilter<G, P>> matches;
+
+        private MatchedFilterQuery(String term) {
+            this.matches = FilterBar.this.analyzer.analyze(term).entrySet().stream()
+                    .flatMap(entry -> entry.getValue().stream()
+                            .map(parts -> new MatchedFilter<>(term, entry.getKey(), parts)))
+                    .sorted((f1, f2) -> f1.getGroupPriority() == f2.getGroupPriority()
+                            ? Long.compare(f1.getPartPriority(), f2.getPartPriority())
+                            : Long.compare(f1.getGroupPriority(), f2.getGroupPriority()))
+                    .collect(Collectors.toList());
+
+            if (FilterBar.this.matchCountRetriever != null) {
+                if (FilterBar.this.matchCountMode == MatchCountMode.SKIP) {
+                    if (FilterBar.this.matchCountThreshold >= this.matches.size()) {
+                        count(this.matches.size());
+                    }
+                } else {
+                    count(Math.min(this.matches.size(), FilterBar.this.matchCountThreshold));
+                }
+            }
+        }
+
+        private void count(int limit) {
+            this.matches.stream().limit(limit).forEach(match -> match.setMatchCount(FilterBar.this.matchCountRetriever.apply(match)));
+        }
+
+        private int count() {
+            return this.matches.size();
+        }
+
+        private Stream<MatchedFilter<G, P>> fetch(int offset, int limit) {
+            return this.matches.stream().skip(offset).limit(limit);
+        }
+    }
 
     private final class Favorite {
 
@@ -67,34 +106,19 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
     }
 
     /**
-     * The value change modes the {@link FilterBar} can operate on.
+     * The modes when to assert a {@link MatchedFilter}'s count.
      */
-    public enum ValueChangeMode {
+    public enum MatchCountMode {
 
         /**
-         * Will cause the text input only to react upon pressing {@link Key#ENTER} or leaving the field.
-         * <p>
-         * Upon the input being confirmed, the selections for group and parts will be filled and automatically selected
-         * if only one possibility applies and opening their menu if there are multiple possibilities.
-         * <p>
-         * The input dialog will stay open until the user explicitly clicks on the button to signal the input being
-         * finished.
+         * Retrieves the result count for the {@link MatchedFilter}s with the highest priority, capped by {@link #setMatchCountThreshold(int)}.
          */
-        LAZY,
+        CAPPED,
 
         /**
-         * Will cause the text input to react upon every new char entered or deleted.
-         * <p>
-         * Upon every key stroke, the selections for group and parts will be filled and automatically selected if only
-         * one possibility applies.
-         * <p>
-         * Upon pressing {@link Key#ENTER}, the selections for group and parts will open their menu if there are
-         * multiple possibilities.
-         * <p>
-         * The input dialog will stay open until the user presses {@link Key#ENTER} and there is exactly one group and
-         * part selected or the user explicitly clicks on the button to signal the input being finished.
+         * Retrieves the result count only if there are equal or fewer {@link MatchedFilter}s than {@link #setMatchCountThreshold(int)}.
          */
-        EAGER;
+        SKIP
     }
 
     public abstract class MatchedFilterBuilder<B> {
@@ -177,7 +201,7 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
                 MatchedFilterBuilder.this.modification.add((added, removed) -> FilterBar.this
                         .analyzer.analyzeForGroup(term, this.group).stream()
                         .filter(parts -> this.parts.stream().allMatch(part -> part.test(parts)))
-                        .map(parts -> new MatchedFilter<>(this.group, parts, FilterBar.this.groupRenderer, FilterBar.this.partRenderer))
+                        .map(parts -> new MatchedFilter<>(term, this.group, parts))
                         .forEach(added::add));
 
                 return MatchedFilterBuilder.this;
@@ -301,17 +325,17 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
     private final InputAnalyzer<G, P> analyzer;
     private final Map<MatchedFilter<G, P>, Component> filters = new IdentityHashMap<>();
 
+    private final VerticalLayout mainLayout;
     private final MenuBar favorites;
+    private final ComboBox<MatchedFilter<G, P>> filterInput;
     private final HorizontalLayout filterLayout;
-    private final HorizontalLayout mainLayout;
 
-    private ValueChangeMode valueChangeMode = ValueChangeMode.EAGER;
-    private String dialogWidth;
     private Function<G, String> groupRenderer = String::valueOf;
     private Function<P, String> partRenderer = String::valueOf;
-    private String inputPlaceholder;
-    private String groupPlaceholder;
-    private String partPlaceholder;
+
+    private Function<MatchedFilter<G, P>, Long> matchCountRetriever = null;
+    private MatchCountMode matchCountMode = MatchCountMode.CAPPED;
+    private Integer matchCountThreshold = Integer.MAX_VALUE;
 
     /**
      * Advanced constructor.
@@ -325,26 +349,44 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
 
         this.analyzer = analyzer;
 
-        this.mainLayout = new HorizontalLayout();
-        this.mainLayout.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
-        this.mainLayout.getElement().getStyle().set("background-color", "rgba(128,128,128,0.05)");
+        this.mainLayout = new VerticalLayout();
+        this.mainLayout.setWidth(null);
+        this.mainLayout.setHeight(null);
+        this.mainLayout.setMargin(false);
+        this.mainLayout.setPadding(false);
+        this.mainLayout.setSpacing(false);
+
+        HorizontalLayout functionLayout = new HorizontalLayout();
+        functionLayout.setWidthFull();
+        functionLayout.setHeight(null);
+        functionLayout.setMargin(false);
+        functionLayout.setPadding(false);
+        functionLayout.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+        this.mainLayout.add(functionLayout);
 
         this.favorites = new MenuBar();
         this.favorites.addItem(VaadinIcon.HEART.create());
+        this.favorites.addThemeVariants(MenuBarVariant.LUMO_ICON);
         this.favorites.setVisible(false);
-        this.mainLayout.add(this.favorites);
+        functionLayout.add(this.favorites);
 
-        Button filterBtn = new Button(VaadinIcon.FILTER.create());
-        filterBtn.getElement().getStyle().set("margin-top", "0px");
-        filterBtn.getElement().getStyle().set("margin-bottom", "0px");
-        filterBtn.addClickListener(event -> openInput());
-        this.mainLayout.add(filterBtn);
-
-        this.filterLayout = new HorizontalLayout();
-        this.filterLayout.setWidthFull();
-        this.filterLayout.setHeight(null);
-        this.filterLayout.getElement().getStyle().set("overflow-x", "auto");
-        this.mainLayout.add(this.filterLayout);
+        CallbackDataProvider.FetchCallback<MatchedFilter<G, P>, MatchedFilterQuery> fetcher = query -> query.getFilter()
+                .map(matches -> matches.fetch(query.getOffset(), query.getLimit())).orElse(Stream.empty());
+        CallbackDataProvider.CountCallback<MatchedFilter<G, P>, MatchedFilterQuery> counter = query -> query.getFilter()
+                .map(MatchedFilterQuery::count).orElse(0);
+        this.filterInput = new ComboBox<>();
+        this.filterInput.setWidthFull();
+        this.filterInput.setDataProvider(new CallbackDataProvider<>(fetcher, counter), MatchedFilterQuery::new);
+        this.filterInput.setItemLabelGenerator(MatchedFilter::getTerm);
+        this.filterInput.setRenderer(new ComponentRenderer<>(this::renderAsMatch));
+        this.filterInput.addValueChangeListener(event -> {
+            if (event.getValue() != null) {
+                addFilter(event.getValue());
+                notify(Collections.singletonList(event.getValue()), Collections.emptyList(), event.isFromClient());
+                this.filterInput.setValue(null);
+            }
+        });
+        functionLayout.add(this.filterInput);
 
         Button removeAllBtn = new Button(VaadinIcon.CLOSE_SMALL.create());
         removeAllBtn.getElement().getStyle().set("margin-top", "0px");
@@ -354,7 +396,16 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
             filters.forEach(this::removeFilter);
             notify(Collections.emptyList(), filters, event.isFromClient());
         });
-        this.mainLayout.add(removeAllBtn);
+        functionLayout.add(removeAllBtn);
+
+        this.filterLayout = new HorizontalLayout();
+        this.filterLayout.setWidthFull();
+        this.filterLayout.setHeight(null);
+        this.filterLayout.setMargin(false);
+        this.filterLayout.setPadding(false);
+        this.filterLayout.getElement().getStyle().set("overflow-x", "auto");
+        this.filterLayout.getElement().getStyle().set("margin-top", "5px");
+        this.mainLayout.add(this.filterLayout);
     }
 
     @Override
@@ -362,133 +413,59 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
         return this.mainLayout;
     }
 
-    private void openInput() {
-        TextField inputField = new TextField();
-        inputField.setWidthFull();
-        inputField.setHeight(null);
-        inputField.setValueChangeMode(this.valueChangeMode == ValueChangeMode.EAGER ?
-                com.vaadin.flow.data.value.ValueChangeMode.EAGER : com.vaadin.flow.data.value.ValueChangeMode.LAZY);
-        inputField.setPlaceholder(this.inputPlaceholder);
+    private Component renderAsMatch(MatchedFilter<G, P> filter) {
+        VerticalLayout matchLayout = new VerticalLayout();
+        matchLayout.setWidthFull();
+        matchLayout.setHeight(null);
+        matchLayout.setMargin(false);
+        matchLayout.setPadding(false);
+        matchLayout.setSpacing(false);
 
-        ComboBox<G> groupSelect = new ComboBox<>();
-        groupSelect.setWidthFull();
-        groupSelect.setHeight(null);
-        groupSelect.setItemLabelGenerator(this.groupRenderer::apply);
-        groupSelect.setRenderer(new TextRenderer<>(this.groupRenderer::apply));
-        groupSelect.setPlaceholder(this.groupPlaceholder);
-        groupSelect.setReadOnly(true);
+        HorizontalLayout groupLayout = new HorizontalLayout();
+        groupLayout.setWidthFull();
+        groupLayout.setHeight(null);
+        groupLayout.setMargin(false);
+        groupLayout.setPadding(false);
+        matchLayout.add(groupLayout);
 
-        ComboBox<MatchedFilter<G, P>> partingSelect = new ComboBox<>();
-        partingSelect.setWidthFull();
-        partingSelect.setHeight(null);
-        partingSelect.setItemLabelGenerator(MatchedFilter::toStringParts);
-        partingSelect.setRenderer(new TextRenderer<>(MatchedFilter::toStringParts));
-        partingSelect.setPlaceholder(this.partPlaceholder);
-        partingSelect.setReadOnly(true);
+        Label groupLabel = new Label(this.groupRenderer.apply(filter.getGroup()));
+        groupLabel.setWidthFull();
+        groupLayout.getElement().getStyle().set("font-weight", "bold");
+        groupLayout.add(groupLabel);
 
-        Button ok = new Button(VaadinIcon.CHECK.create());
-        ok.addThemeVariants(ButtonVariant.LUMO_SMALL);
-        ok.setEnabled(false);
+        if (filter.getMatchCount() != null) {
+            Label countLabel = new Label(String.valueOf(filter.getMatchCount()));
+            countLabel.getElement().getStyle().set("padding-top", "2px");
+            countLabel.getElement().getStyle().set("padding-bottom", "2px");
+            countLabel.getElement().getStyle().set("padding-right", "5px");
+            countLabel.getElement().getStyle().set("padding-left", "5px");
+            countLabel.getElement().getStyle().set("background-color", "rgba(128,128,128,0.1)");
+            countLabel.getElement().getStyle().set("font-size", "0.75em");
+            groupLayout.add(countLabel);
+            groupLayout.setVerticalComponentAlignment(FlexComponent.Alignment.CENTER, countLabel);
+        }
 
-        inputField.addValueChangeListener(event -> {
-            Set<G> groups = inputField.getValue() == null ? Collections.emptySet() : this.analyzer.matching(inputField.getValue());
-            groupSelect.setReadOnly(groups.isEmpty());
-            groupSelect.setItems(groups);
-            groupSelect.setValue(groups.size() == 1 ? groups.iterator().next() : null);
-            if (this.valueChangeMode == ValueChangeMode.LAZY && groups.size() > 1) {
-                groupSelect.setOpened(true);
-            }
-        });
-        inputField.addKeyPressListener(Key.ENTER, event -> {
-            if (this.valueChangeMode == ValueChangeMode.EAGER) {
-                if (((ListDataProvider<G>) groupSelect.getDataProvider()).getItems().size() > 1) {
-                    groupSelect.setOpened(true);
-                } else if (((ListDataProvider<MatchedFilter<G, P>>) partingSelect.getDataProvider()).getItems().size() > 1) {
-                    groupSelect.setOpened(true);
-                } else if (groupSelect.getValue() != null && partingSelect.getValue() != null) {
-                    ok.clickInClient();
-                }
-            }
-        });
-        groupSelect.addValueChangeListener(event -> {
-            List<MatchedFilter<G, P>> filters = event.getValue() == null ? Collections.emptyList() : this.analyzer.
-                    analyzeForGroup(inputField.getValue(), event.getValue()).stream().
-                    map(parts -> new MatchedFilter<>(groupSelect.getValue(), parts, this.groupRenderer, this.partRenderer)).
-                    collect(Collectors.toList());
-            partingSelect.setReadOnly(filters.isEmpty());
-            partingSelect.setItems(filters);
-            partingSelect.setValue(filters.size() == 1 ? filters.iterator().next() : null);
-            if (this.valueChangeMode == ValueChangeMode.LAZY && filters.size() > 1) {
-                partingSelect.setOpened(true);
-            }
-        });
-        partingSelect.addValueChangeListener(event -> {
-            boolean invalid = true;
-            String invalidMsg = null;
-            if (event.getValue() != null) {
-                invalid = !event.getValue().getParts().stream().
-                        allMatch(part -> part.isValid(event.getValue().getPart(part)));
-                invalidMsg = event.getValue().getParts().stream().
-                        filter(part -> !part.isValid(event.getValue().getPart(part))).
-                        map(part -> part.getInvalidLabel(event.getValue().getPart(part))).
-                        findFirst().
-                        orElse(null);
-                ok.setEnabled(!invalid);
-            } else {
-                ok.setEnabled(false);
-            }
-            inputField.setInvalid(invalid);
-            inputField.setErrorMessage(invalidMsg);
-        });
+        String partHtml = filter.getPartMappings().entrySet().stream()
+                .map(entry -> "<b>" + this.partRenderer.apply(entry.getKey()) + "</b>: "
+                        + "<i>" + entry.getValue() + "</i>")
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
+        Html partLabel = new Html("<span>" + partHtml + "</span>");
+        partLabel.getElement().getStyle().set("font-size", "0.70em");
+        matchLayout.add(partLabel);
 
-        HorizontalLayout footerLayout = new HorizontalLayout(partingSelect, ok);
-        footerLayout.setWidthFull();
-        footerLayout.setHeight(null);
-        footerLayout.setPadding(false);
-        footerLayout.setVerticalComponentAlignment(FlexComponent.Alignment.CENTER, ok);
-
-        VerticalLayout dialogLayout = new VerticalLayout(inputField, groupSelect, footerLayout);
-        dialogLayout.setWidthFull();
-        dialogLayout.setHeight(null);
-        dialogLayout.setPadding(false);
-
-        Dialog dialog = new Dialog(dialogLayout);
-        dialog.setWidth(this.dialogWidth);
-        dialog.setHeight(null);
-        dialog.setCloseOnOutsideClick(true);
-        dialog.setCloseOnEsc(true);
-
-        ok.addClickListener(event -> {
-            addFilter(partingSelect.getValue());
-            notify(Collections.singletonList(partingSelect.getValue()), Collections.emptyList(), event.isFromClient());
-            dialog.close();
-        });
-
-        dialog.open();
-    }
-
-    /**
-     * Begins a new {@link FilterModificationBuilder} to programmatically apply modifications to the
-     * {@link FilterBar}'s current set of {@link MatchedFilter}s.
-     *
-     * @return A new {@link FilterModificationBuilder}, never null
-     */
-    public FilterModificationBuilder modifyFilters() {
-        return new FilterModificationBuilder();
-    }
-
-    /**
-     * Begins a new {@link FavoriteModificationBuilder} to programmatically apply modifications to the
-     * {@link FilterBar}'s current set of favorites.
-     *
-     * @return A new {@link FavoriteModificationBuilder}, never null
-     */
-    public FavoriteModificationBuilder modifyFavorites() {
-        return new FavoriteModificationBuilder();
+        return matchLayout;
     }
 
     private void addFilter(MatchedFilter<G, P> filter) {
-        Button filterBadge = new Button(filter.toString(), VaadinIcon.CLOSE_SMALL.create());
+        String badgeLabel = filter.getPartMappings().entrySet().stream()
+                .map(entry -> this.partRenderer.apply(entry.getKey()) + ": " + entry.getValue())
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
+
+        Button filterBadge = new Button(badgeLabel, VaadinIcon.CLOSE_SMALL.create());
+        filterBadge.getElement().getStyle().set("margin-top", "0px");
+        filterBadge.getElement().getStyle().set("margin-bottom", "0px");
         filterBadge.addThemeVariants(ButtonVariant.LUMO_SMALL);
         filterBadge.addClickListener(event -> {
             removeFilter(filter);
@@ -509,26 +486,23 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
     }
 
     /**
-     * Sets the mode of how the filter input reacts to changed input.
+     * Begins a new {@link FilterModificationBuilder} to programmatically apply modifications to the
+     * {@link FilterBar}'s current set of {@link MatchedFilter}s.
      *
-     * @see ValueChangeMode
-     * @param valueChangeMode The mode to set; might <b>not</b> be null.
+     * @return A new {@link FilterModificationBuilder}, never null
      */
-    public void setValueChangeMode(ValueChangeMode valueChangeMode) {
-        if (valueChangeMode == null) {
-            throw new IllegalArgumentException("Cannot set a null value change mode");
-        }
-        this.valueChangeMode = valueChangeMode;
+    public FilterModificationBuilder modifyFilters() {
+        return new FilterModificationBuilder();
     }
 
     /**
-     * Sets this input dialog's width to a fixed pixel value.
+     * Begins a new {@link FavoriteModificationBuilder} to programmatically apply modifications to the
+     * {@link FilterBar}'s current set of favorites.
      *
-     * @see Dialog#setWidth(String)
-     * @param dialogWidth The width; might be null.
+     * @return A new {@link FavoriteModificationBuilder}, never null
      */
-    public void setDialogWidth(String dialogWidth) {
-        this.dialogWidth = dialogWidth;
+    public FavoriteModificationBuilder modifyFavorites() {
+        return new FavoriteModificationBuilder();
     }
 
     /**
@@ -574,30 +548,48 @@ public class FilterBar<G extends Enum<G>, P extends Enum<P> & MatchedFilterInput
     }
 
     /**
-     * Sets the place holder for when no input is entered yet.
+     * Sets a retriever capable to estimate the amount of matches the given filter would receive.
+     * <p>
+     * The resulting count is displayed in the filter selection popup.
      *
-     * @param inputPlaceholder The place holder; might be null
+     * @param matchCountRetriever The estimating {@link Function}; might be null, then no match count is displayed
+     */
+    public void setMatchCountRetriever(Function<MatchedFilter<G, P>, Long> matchCountRetriever) {
+        this.matchCountRetriever = matchCountRetriever;
+    }
+
+    /**
+     * Sets the mode on how to estimate the amount of matches a filter would receive.
+     * <p>
+     * Only effective if {@link #setMatchCountRetriever(Function)} is set.
+     *
+     * @param matchCountMode The mode; might <b>not</b> be null.
+     */
+    public void setMatchCountMode(MatchCountMode matchCountMode) {
+        if (matchCountMode == null) {
+            throw new IllegalArgumentException("Cannot set the match count mode to null");
+        }
+        this.matchCountMode = matchCountMode;
+    }
+
+    /**
+     * Sets the maximum amount of filters an amount a matches will be retrieved for.
+     * <p>
+     * Only effective if {@link #setMatchCountRetriever(Function)} is set.
+     *
+     * @param threshold The amount of filters
+     */
+    public void setMatchCountThreshold(int threshold) {
+        this.matchCountThreshold = threshold;
+    }
+
+    /**
+     * Sets the placeholder for when no input is entered yet.
+     *
+     * @param inputPlaceholder The placeholder; might be null
      */
     public void setInputPlaceholder(String inputPlaceholder) {
-        this.inputPlaceholder = inputPlaceholder;
-    }
-
-    /**
-     * Sets the place holder for when no group is selected yet.
-     *
-     * @param groupPlaceholder The place holder; might be null
-     */
-    public void setGroupPlaceholder(String groupPlaceholder) {
-        this.groupPlaceholder = groupPlaceholder;
-    }
-
-    /**
-     * Sets the place holder for when no part is selected yet.
-     *
-     * @param partPlaceholder The place holder; might be null
-     */
-    public void setPartPlaceholder(String partPlaceholder) {
-        this.partPlaceholder = partPlaceholder;
+        this.filterInput.setPlaceholder(inputPlaceholder);
     }
 
     /**

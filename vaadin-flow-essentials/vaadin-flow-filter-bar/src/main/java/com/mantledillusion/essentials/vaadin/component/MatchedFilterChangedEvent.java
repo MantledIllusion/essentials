@@ -7,11 +7,12 @@ import java.util.List;
 /**
  * {@link ComponentEvent} fired when there is at least one {@link MatchedFilter} added or removed from its {@link FilterBar}.
  *
- * @param <G> The {@link Enum} representing the input groups (for example a name, an address, a specific ID, ...).
+ * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
+ *           (for example a name, an address, a specific ID, ...).
  * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
  *           the input groups (a first name, a last name, a company name, a zip code, ...).
  */
-public final class MatchedFilterChangedEvent<G extends Enum<G>, P extends Enum<P> & MatchedFilterInputPart> extends ComponentEvent<FilterBar<G, P>> {
+public final class MatchedFilterChangedEvent<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> extends ComponentEvent<FilterBar<G, P>> {
 
     private final List<MatchedFilter<G, P>> added;
     private final List<MatchedFilter<G, P>> removed;

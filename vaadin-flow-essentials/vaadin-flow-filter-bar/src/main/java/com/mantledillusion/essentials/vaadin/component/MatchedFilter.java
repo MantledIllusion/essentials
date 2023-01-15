@@ -8,23 +8,32 @@ import java.util.function.Function;
 /**
  * A {@link MatchedFilter} created by a user of a {@link FilterBar}.
  *
- * @param <G> The {@link Enum} representing the input groups (for example a name, an address, a specific ID, ...).
+ * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
+ *           (for example a name, an address, a specific ID, ...).
  * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
  *           the input groups (a first name, a last name, a company name, a zip code, ...).
  */
-public final class MatchedFilter<G extends Enum<G>, P extends Enum<P> & MatchedFilterInputPart> {
+public final class MatchedFilter<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> {
 
+    private final String term;
     private final G group;
     private final Map<P, String> parts;
 
-    private final Function<G, String> groupRenderer;
-    private final Function<P, String> partRenderer;
+    private Long matchCount;
 
-    MatchedFilter(G group, Map<P, String> parts, Function<G, String> groupRenderer, Function<P, String> partRenderer) {
+    MatchedFilter(String term, G group, Map<P, String> parts) {
+        this.term = term;
         this.group = group;
         this.parts = Collections.unmodifiableMap(parts);
-        this.groupRenderer = groupRenderer;
-        this.partRenderer = partRenderer;
+    }
+
+    /**
+     * The raw term as it was put into the search bar.
+     *
+     * @return The term, never null
+     */
+    public String getTerm() {
+        return term;
     }
 
     /**
@@ -34,6 +43,17 @@ public final class MatchedFilter<G extends Enum<G>, P extends Enum<P> & MatchedF
      */
     public G getGroup() {
         return this.group;
+    }
+
+    /**
+     * Returns the priority this {@link MatchedFilter} has in relation to other {@link MatchedFilter}s based on its group.
+     * <p>
+     * The lower the value the higher the priority.
+     *
+     * @return The priority
+     */
+    public long getGroupPriority() {
+        return this.group.getPriority();
     }
 
     /**
@@ -74,14 +94,27 @@ public final class MatchedFilter<G extends Enum<G>, P extends Enum<P> & MatchedF
         return this.parts.get(part);
     }
 
-    @Override
-    public String toString() {
-        return this.groupRenderer.apply(this.group) + "; " + toStringParts();
+    /**
+     * Returns the priority this {@link MatchedFilter} has in relation to other {@link MatchedFilter}s based on its group.
+     * <p>
+     * The lower the value the higher the priority.
+     *
+     * @return The priority
+     */
+    public long getPartPriority() {
+        return this.parts.keySet().stream().mapToLong(MatchedFilterInputPart::getPriority).sum();
     }
 
-    String toStringParts() {
-        return this.parts.entrySet().stream().
-                map(entry -> this.partRenderer.apply(entry.getKey()) + ": " + entry.getValue()).
-                reduce((a, b) -> a + ", " + b).orElse("");
+    /**
+     * Returns the amount of matches this filter got as counted by {@link FilterBar#setMatchCountRetriever(Function)}.
+     *
+     * @return The amount of matches, might be null depending on the {@link FilterBar}'s match count settings
+     */
+    public Long getMatchCount() {
+        return this.matchCount;
+    }
+
+    void setMatchCount(Long matchCount) {
+        this.matchCount = matchCount;
     }
 }
