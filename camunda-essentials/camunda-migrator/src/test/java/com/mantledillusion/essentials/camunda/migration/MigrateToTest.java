@@ -93,7 +93,7 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
                 .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
-                .toDefinitionTag(Processes.Common.VersionTags.REV2)
+                .toVersionTag(Processes.Common.VersionTags.REV2)
                 .finalizeScenario()
                 .migrate();
 

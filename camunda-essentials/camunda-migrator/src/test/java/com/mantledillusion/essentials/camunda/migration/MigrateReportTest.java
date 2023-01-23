@@ -39,11 +39,11 @@ public class MigrateReportTest extends AbstractProcessMigrationTest {
                 .defineScenarios()
                     .defineScenario(NAME_1_TO_2)
                         .whereVersionTag(Processes.Common.VersionTags.REV1)
-                        .toDefinitionTag(Processes.Common.VersionTags.REV2)
+                        .toVersionTag(Processes.Common.VersionTags.REV2)
                         .finalizeScenario()
                     .defineScenario(NAME_2_TO_3)
                         .whereVersionTag(Processes.Common.VersionTags.REV2)
-                        .toDefinitionTag(Processes.Common.VersionTags.REV3)
+                        .toVersionTag(Processes.Common.VersionTags.REV3)
                         .finalizeScenario()
                     .finalizeScenarios()
                 .migrate();
