@@ -285,12 +285,12 @@ public final class ProcessMigration {
         /**
          * Migrate the process instances to a definition with the given tag.
          *
-         * @see ProcessDefinitionQuery#processDefinitionKey(String)
-         * @param definitionTag The tag to migrate to; might be null.
+         * @see ProcessDefinitionQuery#versionTag(String)
+         * @param versionTag The tag to migrate to; might be null.
          * @return this
          */
-        public ScenarioBuilder<Parent> toDefinitionTag(String definitionTag) {
-            return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.versionTag(definitionTag)));
+        public ScenarioBuilder<Parent> toVersionTag(String versionTag) {
+            return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.versionTag(versionTag)));
         }
 
         /**
