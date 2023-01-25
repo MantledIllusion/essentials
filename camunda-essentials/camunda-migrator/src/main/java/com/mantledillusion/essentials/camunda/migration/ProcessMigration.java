@@ -80,6 +80,24 @@ public final class ProcessMigration {
         This whereDefinitionId(String definitionId);
 
         /**
+         * Filter for process instances whose definition has one of the given ids.
+         *
+         * @see ProcessInstanceQuery#processDefinitionId(String)
+         * @param definitionIds The definitionIds to filter for; might <b>not</b> be null
+         * @return this
+         */
+        This whereDefinitionIdIn(String... definitionIds);
+
+        /**
+         * Filter for process instances whose definition's id matches the given pattern.
+         *
+         * @see ProcessInstanceQuery#processDefinitionId(String)
+         * @param definitionIdPattern The definitionId regex pattern to filter for; might <b>not</b> be null
+         * @return this
+         */
+        This whereDefinitionIdLike(String definitionIdPattern);
+
+        /**
          * Filter for process instances whose definition has the given key.
          *
          * @see ProcessInstanceQuery#processDefinitionKey(String)
@@ -87,6 +105,24 @@ public final class ProcessMigration {
          * @return this
          */
         This whereDefinitionKey(String definitionKey);
+
+        /**
+         * Filter for process instances whose definition has one of the given keys.
+         *
+         * @see ProcessInstanceQuery#processDefinitionKey(String)
+         * @param definitionKeys The definitionKeys to filter for; might <b>not</b> be null
+         * @return this
+         */
+        This whereDefinitionKeyIn(String... definitionKeys);
+
+        /**
+         * Filter for process instances whose definition's key matches the given pattern.
+         *
+         * @see ProcessInstanceQuery#processDefinitionKey(String)
+         * @param definitionKeyPattern The definitionKey regex pattern to filter for; might <b>not</b> be null
+         * @return this
+         */
+        This whereDefinitionKeyLike(String definitionKeyPattern);
 
         /**
          * Filter for process instances whose definition has the given version tag.
@@ -98,6 +134,24 @@ public final class ProcessMigration {
         This whereVersionTag(String versionTag);
 
         /**
+         * Filter for process instances whose definition has one of the given version tags.
+         *
+         * @see ProcessDefinition#getVersionTag()
+         * @param versionTags The versionTags to filter for; might be null.
+         * @return this
+         */
+        This whereVersionTagIn(String... versionTags);
+
+        /**
+         * Filter for process instances whose definition's version tag matches the given pattern.
+         *
+         * @see ProcessDefinition#getVersionTag()
+         * @param versionTagPattern The versionTag regex pattern to filter for; might be null.
+         * @return this
+         */
+        This whereVersionTagLike(String versionTagPattern);
+
+        /**
          * Filter for process instances whose definition has the given version.
          *
          * @see ProcessDefinition#getVersion()
@@ -105,6 +159,15 @@ public final class ProcessMigration {
          * @return this
          */
         This whereVersion(int version);
+
+        /**
+         * Filter for process instances whose definition has one of the given versions.
+         *
+         * @see ProcessDefinition#getVersion()
+         * @param versions The versions to filter for; might <b>not</b> be null.
+         * @return this
+         */
+        This whereVersionIn(Integer... versions);
 
         /**
          * Filter for process instances currently having an active activity with the given name.
@@ -217,6 +280,17 @@ public final class ProcessMigration {
         }
 
         @Override
+        public ScenarioBuilder<Parent> whereDefinitionIdIn(String... definitionIds) {
+            Set<String> definitionIdSet = new HashSet<>(Arrays.asList(definitionIds));
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definitionIdSet.contains(definition.getId())));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> whereDefinitionIdLike(String definitionIdPattern) {
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getId().matches(definitionIdPattern)));
+        }
+
+        @Override
         public ScenarioBuilder<Parent> whereDefinitionKey(String definitionKey) {
             if (definitionKey == null) {
                 throw new IllegalArgumentException("Unable to filter for a null definition key");
@@ -225,13 +299,40 @@ public final class ProcessMigration {
         }
 
         @Override
+        public ScenarioBuilder<Parent> whereDefinitionKeyIn(String... definitionKeys) {
+            return addAdaptor(migration -> migration.addProcessPreFilter(query -> query.processDefinitionKeyIn(definitionKeys)));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> whereDefinitionKeyLike(String definitionKeyPattern) {
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getKey().matches(definitionKeyPattern)));
+        }
+
+        @Override
         public ScenarioBuilder<Parent> whereVersionTag(String versionTag) {
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> Objects.equals(definition.getVersionTag(), versionTag)));
         }
 
         @Override
+        public ScenarioBuilder<Parent> whereVersionTagIn(String... versionTags) {
+            Set<String> versionTagSet = new HashSet<>(Arrays.asList(versionTags));
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> versionTagSet.contains(definition.getVersionTag())));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> whereVersionTagLike(String versionTagPattern) {
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> StringUtil.defaultString(definition.getVersionTag()).matches(versionTagPattern)));
+        }
+
+        @Override
         public ScenarioBuilder<Parent> whereVersion(int version) {
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getVersion() == version));
+        }
+
+        @Override
+        public ScenarioBuilder<Parent> whereVersionIn(Integer... versions) {
+            Set<Integer> versionSet = new HashSet<>(Arrays.asList(versions));
+            return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> versionSet.contains(definition.getVersion())));
         }
 
         @Override
@@ -540,8 +641,30 @@ public final class ProcessMigration {
         }
 
         @Override
+        public AdjustmentBuilder<Parent> whereDefinitionIdIn(String... definitionIds) {
+            Set<String> definitionIdSet = new HashSet<>(Arrays.asList(definitionIds));
+            return addPredicate((service, definition, instance) -> definitionIdSet.contains(definition.getId()));
+        }
+
+        @Override
+        public AdjustmentBuilder<Parent> whereDefinitionIdLike(String definitionIdPattern) {
+            return addPredicate((service, definition, instance) -> definition.getId().matches(definitionIdPattern));
+        }
+
+        @Override
         public AdjustmentBuilder<Parent> whereDefinitionKey(String definitionKey) {
             return addPredicate((service, definition, instance) -> definition.getKey().equals(definitionKey));
+        }
+
+        @Override
+        public AdjustmentBuilder<Parent> whereDefinitionKeyIn(String... definitionKeys) {
+            Set<String> definitionKeySet = new HashSet<>(Arrays.asList(definitionKeys));
+            return addPredicate((service, definition, instance) -> definitionKeySet.contains(definition.getKey()));
+        }
+
+        @Override
+        public AdjustmentBuilder<Parent> whereDefinitionKeyLike(String definitionKeyPattern) {
+            return addPredicate((service, definition, instance) -> definition.getKey().matches(definitionKeyPattern));
         }
 
         @Override
@@ -550,8 +673,25 @@ public final class ProcessMigration {
         }
 
         @Override
+        public AdjustmentBuilder<Parent> whereVersionTagIn(String... versionTags) {
+            Set<String> versionTagSet = new HashSet<>(Arrays.asList(versionTags));
+            return addPredicate((service, definition, instance) -> versionTagSet.contains(definition.getVersionTag()));
+        }
+
+        @Override
+        public AdjustmentBuilder<Parent> whereVersionTagLike(String versionTagPattern) {
+            return addPredicate((service, definition, instance) -> StringUtil.defaultString(definition.getVersionTag()).matches(versionTagPattern));
+        }
+
+        @Override
         public AdjustmentBuilder<Parent> whereVersion(int version) {
             return addPredicate((service, definition, instance) -> definition.getVersion() == version);
+        }
+
+        @Override
+        public AdjustmentBuilder<Parent> whereVersionIn(Integer... versions) {
+            Set<Integer> versionSet = new HashSet<>(Arrays.asList(versions));
+            return addPredicate((service, definition, instance) -> versionSet.contains(definition.getVersion()));
         }
 
         @Override
