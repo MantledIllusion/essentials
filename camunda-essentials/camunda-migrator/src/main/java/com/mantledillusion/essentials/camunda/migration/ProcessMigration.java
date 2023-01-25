@@ -2,6 +2,7 @@ package com.mantledillusion.essentials.camunda.migration;
 
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.RuntimeService;
+import org.camunda.bpm.engine.migration.MigrationInstructionBuilder;
 import org.camunda.bpm.engine.migration.MigrationPlan;
 import org.camunda.bpm.engine.migration.MigrationPlanBuilder;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
@@ -333,12 +334,30 @@ public final class ProcessMigration {
          * @return this
          */
         public ScenarioBuilder<Parent> usingMapping(String sourceActivityId, String targetActivityId) {
+            return usingMapping(sourceActivityId, targetActivityId, false);
+        }
+
+        /**
+         * Use the given specific activity mapping.
+         *
+         * @see MigrationPlanBuilder#mapActivities(String, String)
+         * @param sourceActivityId The activityId in the process definition of the source process instance; might <b>not</b> be null.
+         * @param targetActivityId The activityId in the target process definition; might <b>not</b> be null.
+         * @param updateEventTrigger Whether to update triggers for the given activities' events using {@link MigrationInstructionBuilder#updateEventTrigger()}
+         * @return this
+         */
+        public ScenarioBuilder<Parent> usingMapping(String sourceActivityId, String targetActivityId, boolean updateEventTrigger) {
             if (sourceActivityId == null) {
                 throw new IllegalArgumentException("Cannot map from a null source activity");
             } else if (targetActivityId == null) {
                 throw new IllegalArgumentException("Cannot map to a null target activity");
             }
-            return addAdaptor(migration -> migration.addMigrationPlanAdjustment(plan -> plan.mapActivities(sourceActivityId, targetActivityId)));
+            return addAdaptor(migration -> migration.addMigrationPlanAdjustment(plan -> {
+                MigrationInstructionBuilder instruction = plan.mapActivities(sourceActivityId, targetActivityId);
+                if (updateEventTrigger) {
+                    instruction.updateEventTrigger();
+                }
+            }));
         }
 
         /**
