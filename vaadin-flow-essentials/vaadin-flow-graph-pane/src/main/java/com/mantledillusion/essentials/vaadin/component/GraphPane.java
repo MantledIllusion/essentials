@@ -151,6 +151,10 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     @Tag("canvas")
     private final class BackPane extends Component {
 
+        private BackPane() {
+            getElement().getStyle().set("position", "absolute");
+        }
+
         void reinitialize(int width, int height) {
             getElement().setAttribute("width", String.valueOf(width));
             getElement().setAttribute("height", String.valueOf(height));
