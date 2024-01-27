@@ -9,53 +9,6 @@ import java.util.stream.Collectors;
 public class GraphEssentials {
 
     /**
-     * The node of a graph.
-     *
-     * @param <IdType> The type of ID that uniquely identifies nodes.
-     */
-    public interface GraphNode<IdType> {
-
-        /**
-         * Returns the identifier of the node.
-         *
-         * @return The identifier, never null
-         */
-        IdType getIdentifier();
-
-        /**
-         * Returns the radius the node requires just for its core, without considering any children.
-         *
-         * @return The radius, &gt; 0
-         */
-        double getRadius();
-
-        /**
-         * Returns the identifiers of all nodes that are neighbors to this node.
-         * <p>
-         * Relations be either uni- or bi-directional; it won't have any effect on the distribution.
-         *
-         * @return The {@link Set} of neighbors, never null, might be empty
-         */
-        Set<IdType> getNeighbors();
-
-        void setOrbit(double orbit);
-
-        /**
-         * Sets the x-coordinate of the node when it is placed.
-         *
-         * @param x The x coordinate, -INF &lt; x &lt; INF
-         */
-        void setX(double x);
-
-        /**
-         * Sets the y-coordinate of the node when it is placed.
-         *
-         * @param y The x coordinate, -INF &lt; y &lt; INF
-         */
-        void setY(double y);
-    }
-
-    /**
      * Distributes the given nodes on a planetary system around the graphs weighted center.
      * <p>
      * The node at the weighted center (highest weight when considering all children and their respective weights) is
@@ -63,67 +16,47 @@ public class GraphEssentials {
      * orbit around that parent node as a center. The radius of the orbit and the amount of angle assigned to each
      * child around its parent depends on that child's own weight.
      * <p>
-     * In the {@link Collection} of {@link GraphNode}s given, there might be 1 or even multiple sub-sets of nodes which
-     * are connected; if there are multiple, the center of the graph will be the node of the heaviest sub-set, while the
-     * heaviest nodes of the other sets are placed on its orbit.
+     * In the {@link Collection} of {@link Node.Registration}s given, there might be 1 or even multiple sub-sets of
+     * nodes which are connected; if there are multiple, the center of the graph will be the node of the heaviest
+     * sub-set, while the heaviest nodes of the other sets are placed on its orbit.
      * <p>
-     * At the end of the calculation, {@link GraphNode#setX(double)} and {@link GraphNode#setY(double)} is called once
+     * At the end of the calculation, {@link Node#setX(double)} and {@link Node#setY(double)} is called once
      * to set the determined coordinates, where parents get called before their children.
      *
-     * @param <N> The node type
+     * @param <NodeType> The node type
      * @param <IdType> The node's identifier type
-     * @param nodes The nodes to distribute; might <b>not</b> be null.
+     * @param registrations The {@link Node.Registration}s of all @{@link Node}s to distribute; might <b>not</b> be null.
+     * @return A {@link Collection} of nodes that have been distributed after forming possible clusters, never null
      */
-    public static <N extends GraphNode<IdType>, IdType> void distribute(Collection<N> nodes) {
+    public static <NodeType extends Node<NodeType>, IdType> Collection<Node.Registration<NodeType, NodeId<IdType>>> distribute(Collection<Node.Registration<NodeType, IdType>> registrations) {
         // REGISTER ALL NODES
-        Map<IdType, N> nodeRegistry = nodes.stream()
-                .collect(Collectors.toMap(GraphNode::getIdentifier, node -> node));
+        Map<NodeId<IdType>, NodeType> nodeRegistry = NodeEssentials.registerNodes(registrations);
 
         // REGISTER NEIGHBORS BI-DIRECTIONALLY
-        Map<IdType, Set<IdType>> neighborRegistry = new HashMap<>();
-        nodes.forEach(node -> {
-            Set<IdType> neighbors = node.getNeighbors();
-            if (neighbors == null || neighbors.isEmpty()) {
-                neighborRegistry.put(node.getIdentifier(), new HashSet<>());
-            } else {
-                for (IdType neighbor: neighbors) {
-                    if (!nodeRegistry.containsKey(neighbor)) {
-                        throw new IllegalArgumentException(String.format("The neighbor %s of node %s is unknown",
-                                neighbor, node.getIdentifier()));
-                    }
-
-                    // REGISTER NODE -> NEIGHBOR
-                    neighborRegistry
-                            .computeIfAbsent(node.getIdentifier(), id -> new HashSet<>())
-                            .add(neighbor);
-
-                    // REGISTER NEIGHBOR -> NODE
-                    neighborRegistry
-                            .computeIfAbsent(neighbor, id -> new HashSet<>())
-                            .add(node.getIdentifier());
-                }
-            }
-        });
+        Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry = NodeEssentials.registerNeighbors(nodeRegistry, registrations);
 
         // DETERMINE THE HEAVIEST NODE OF ALL; IT IS THE BEST ROOT FOR THE GRAPH
-        IdType graphRoot = determineHeaviestNode(neighborRegistry.keySet(), neighborRegistry);
+        NodeId<IdType> graphRoot = determineHeaviestNode(neighborRegistry.keySet(), neighborRegistry);
 
         // IF THERE IS NO GRAPH ROOT, THE GRAPH IS EMPTY
         if (graphRoot != null) {
             // THERE MIGHT BE SETS OF NODES UNCONNECTED TO EACH OTHER; DETERMINE ALL OF THESE SUB GRAPHS
             determineSubGraphs(neighborRegistry).stream()
-                    // FILTER OUR THE ONE SUB GRAPH CONTAINING THE ROOT OF THE WHOLE GRAPH
+                    // FILTER OUT THE ALL SUB GRAPHS CONTAINING THE ROOT OF THE WHOLE GRAPH
                     .filter(subGraph -> !subGraph.contains(graphRoot))
-                    // DETERMINE THE HEAVIEST NODES OF THE SUB GRAPH
+                    // DETERMINE THE HEAVIEST NODES FOR EACH OF THESE UNCONNECTED SUB GRAPHS
                     .map(subGraph -> determineHeaviestNode(subGraph, neighborRegistry))
-                    // ADD THAT SUB NODE AS A NEIGHBOR TO THE ROOT
+                    // ADD THAT SUB GRAPH ROOT NODE AS A NEIGHBOR TO THE ROOT
                     .forEach(subGraphRoot -> neighborRegistry.get(graphRoot).add(subGraphRoot));
+
+            // CLUSTER CHILD NODES FROM THE ROOT DOWN
+            determineClusters(nodeRegistry, neighborRegistry, graphRoot, new HashSet<>(Collections.singleton(graphRoot)));
 
             // FROM THE LEAVES UP: DETERMINE THE RADIUS EVERY NODE REQUIRES FOR ITSELF
             // AND ALL POSSIBLE CHILDREN ON ITS ORBIT, AS WELL AS THE ANGLES WHERE
             // THOSE CHILDREN ARE PLACED
-            Map<IdType, Double> radiusRegistry = new HashMap<>(nodeRegistry.size());
-            Map<IdType, Double> angleRegistry = new HashMap<>(nodeRegistry.size());
+            Map<NodeId<IdType>, Double> radiusRegistry = new HashMap<>(nodeRegistry.size());
+            Map<NodeId<IdType>, Double> angleRegistry = new HashMap<>(nodeRegistry.size());
             determineRelation(nodeRegistry, neighborRegistry, radiusRegistry, angleRegistry, graphRoot,
                     Collections.singleton(graphRoot));
 
@@ -132,6 +65,10 @@ public class GraphEssentials {
             determinePosition(nodeRegistry, neighborRegistry, radiusRegistry, angleRegistry, graphRoot,
                     0, 0, 0, -1, Collections.singleton(graphRoot));
         }
+
+        return nodeRegistry.entrySet().stream()
+                .map(entry -> entry.getValue().register(entry.getKey(), neighborRegistry.get(entry.getKey())))
+                .collect(Collectors.toList());
     }
 
     private static <IdType> List<Set<IdType>> determineSubGraphs(Map<IdType, Set<IdType>> neighborRegistry) {
@@ -161,7 +98,8 @@ public class GraphEssentials {
         }
     }
 
-    private static <IdType> IdType determineHeaviestNode(Set<IdType> graph, Map<IdType, Set<IdType>> neighborRegistry) {
+    private static <IdType> NodeId<IdType> determineHeaviestNode(Set<NodeId<IdType>> graph,
+                                                                 Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry) {
         return graph.stream()
                 .collect(Collectors.toMap(n -> n, n -> determineWeight(neighborRegistry, n, new HashSet<>(), 1)))
                 .entrySet().stream()
@@ -189,24 +127,89 @@ public class GraphEssentials {
         return 1 + neighborWeights / depth;
     }
 
-    private static <N extends GraphNode<IdType>, IdType> void determineRelation(Map<IdType, N> nodeRegistry,
-                                                                                Map<IdType, Set<IdType>> neighborRegistry,
-                                                                                Map<IdType, Double> radiusRegistry,
-                                                                                Map<IdType, Double> angleRegistry,
-                                                                                IdType currentNode,
-                                                                                Set<IdType> used) {
+    private static <NodeType extends Node<NodeType>, IdType> void determineClusters(Map<NodeId<IdType>, NodeType> nodeRegistry,
+                                                                                    Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
+                                                                                    NodeId<IdType> currentNode,
+                                                                                    Set<NodeId<IdType>> used) {
+        // DETERMINE CLUSTERS OF THE CURRENT NODE'S NEIGHBORS
+        Map<NodeId<IdType>, Set<NodeId<IdType>>> clusters = NodeEssentials.clusterSiblings(nodeRegistry, neighborRegistry, currentNode, used);
+
+        // EXCLUDE CLUSTERS FROM BEING CLUSTERED BY THEIR CHILDREN
+        used.addAll(clusters.keySet());
+
+        // CLUSTER NODES AND UPDATE REGISTRIES
+        for (NodeId<IdType> clusterId: clusters.keySet()) {
+            Set<NodeId<IdType>> cluster = clusters.get(clusterId);
+
+            NodeType clusterNode = null;
+            Set<NodeId<IdType>> clusterNeighbors = new HashSet<>();
+
+            // CLUSTER NODES
+            for (NodeId<IdType> nodeId : cluster) {
+                // CLUSTER NODE WITH REST OF THE CLUSTER
+                if (clusterNode == null) {
+                    clusterNode = nodeRegistry.get(nodeId);
+                } else {
+                    clusterNode = clusterNode.clusterWith(nodeRegistry.get(nodeId));
+                }
+
+                // REMOVE INDIVIDUAL NODE FROM REGISTRY
+                nodeRegistry.remove(nodeId);
+
+                // REMOVE INDIVIDUAL NODE'S NEIGHBORS FROM REGISTRY
+                if (neighborRegistry.containsKey(nodeId)) {
+                    clusterNeighbors.addAll(neighborRegistry.remove(nodeId));
+                }
+            }
+
+            // REGISTER CLUSTER AS NODE
+            nodeRegistry.put(clusterId, clusterNode);
+
+            // REGISTER CLUSTER AS NEIGHBOR
+            for (Set<NodeId<IdType>> neighbors: neighborRegistry.values()) {
+                boolean isNeighbor = false;
+
+                // REMOVE ANY OF THE CLUSTERS NODES REGISTERED AS NEIGHBORS
+                Iterator<NodeId<IdType>> neighborIterator = neighbors.iterator();
+                while (neighborIterator.hasNext()) {
+                    if (cluster.contains(neighborIterator.next())) {
+                        neighborIterator.remove();
+                        isNeighbor = true;
+                    }
+                }
+
+                // REGISTER THE CLUSTER INSTEAD
+                if (isNeighbor) {
+                    neighbors.add(clusterId);
+                }
+            }
+
+            //  REGISTER CLUSTER'S NEIGHBORS
+            neighborRegistry.put(clusterId, clusterNeighbors);
+
+            // RECURSIVELY CLUSTER NEIGHBORS OF CLUSTER
+            determineClusters(nodeRegistry, neighborRegistry, clusterId, used);
+        }
+    }
+
+    private static <NodeType extends Node<NodeType>, IdType> void determineRelation(Map<NodeId<IdType>, NodeType> nodeRegistry,
+                                                                                    Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
+                                                                                    Map<NodeId<IdType>, Double> radiusRegistry,
+                                                                                    Map<NodeId<IdType>, Double> angleRegistry,
+                                                                                    NodeId<IdType> currentNode,
+                                                                                    Set<NodeId<IdType>> used) {
         // DETERMINE CURRENT NODE
-        N node = nodeRegistry.get(currentNode);
+        NodeType node = nodeRegistry.get(currentNode);
 
         // REGISTER CURRENT NODE'S NEIGHBORS
-        Set<IdType> usedChildren = new HashSet<>(used);
+        Set<NodeId<IdType>> usedChildren = new HashSet<>(used);
         usedChildren.addAll(neighborRegistry.get(currentNode));
 
         // TRIGGER RADIUS DETERMINATION FOR CHILDREN;
         // SUM THEIR RADII AND FIND THEIR MAXIMUM
         double maxChildCircleRadius = 0;
         double childRadiiSum = 0;
-        for (IdType childId: neighborRegistry.get(currentNode)) {
+        for (NodeId<IdType> childId: neighborRegistry.get(currentNode)) {
             if (!used.contains(childId)) {
                 determineRelation(nodeRegistry, neighborRegistry, radiusRegistry, angleRegistry, childId, usedChildren);
                 maxChildCircleRadius = Math.max(maxChildCircleRadius, radiusRegistry.get(childId));
@@ -219,7 +222,7 @@ public class GraphEssentials {
         double childAngleSum = 0;
         double parentRadiiSum = 0;
         int childCount = 0;
-        for (IdType childId: neighborRegistry.get(currentNode)) {
+        for (NodeId<IdType> childId: neighborRegistry.get(currentNode)) {
             if (!used.contains(childId)) {
                 // DEPENDING ON THE CHILD NODE'S RADIUS: DETERMINE THEIR SHARE OF CURRENT NODE'S ORBIT
                 double childAngle = (2.0 * Math.PI * radiusRegistry.get(childId)) / childRadiiSum;
@@ -244,22 +247,22 @@ public class GraphEssentials {
         radiusRegistry.put(currentNode, radius);
     }
 
-    private static <N extends GraphNode<IdType>, IdType> void determinePosition(Map<IdType, N> nodeRegistry,
-                                                                                Map<IdType, Set<IdType>> neighborRegistry,
-                                                                                Map<IdType, Double> radiusRegistry,
-                                                                                Map<IdType, Double> angleRegistry,
-                                                                                IdType currentNode,
-                                                                                double currentX, double currentY,
-                                                                                double parentX, double parentY,
-                                                                                Set<IdType> used) {
+    private static <NodeType extends Node<NodeType>, IdType> void determinePosition(Map<NodeId<IdType>, NodeType> nodeRegistry,
+                                                                                    Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
+                                                                                    Map<NodeId<IdType>, Double> radiusRegistry,
+                                                                                    Map<NodeId<IdType>, Double> angleRegistry,
+                                                                                    NodeId<IdType> currentNode,
+                                                                                    double currentX, double currentY,
+                                                                                    double parentX, double parentY,
+                                                                                    Set<NodeId<IdType>> used) {
         // SET POSITION OF CURRENT NODE
-        N node = nodeRegistry.get(currentNode);
+        NodeType node = nodeRegistry.get(currentNode);
         node.setX(currentX);
         node.setY(currentY);
         node.setOrbit(radiusRegistry.get(currentNode));
 
         // REGISTER CURRENT NODE'S NEIGHBORS
-        Set<IdType> usedChildren = new HashSet<>(used);
+        Set<NodeId<IdType>> usedChildren = new HashSet<>(used);
         usedChildren.addAll(neighborRegistry.get(currentNode));
 
         // DETERMINE VECTOR OF PARENT TO CURRENT
@@ -280,7 +283,7 @@ public class GraphEssentials {
                 .orElse(0);
 
         double baseAngle = 0;
-        for (IdType childId: neighborRegistry.get(currentNode)) {
+        for (NodeId<IdType> childId: neighborRegistry.get(currentNode)) {
             if (!used.contains(childId)) {
                 double childAngle = angleRegistry.get(childId);
                 if (childAngle == childAngleMax) {
@@ -293,7 +296,7 @@ public class GraphEssentials {
         }
 
         // TRIGGER SETTING POSITIONS OF CHILDREN ACCORDING TO THEIR ANGLE
-        for (IdType childId: neighborRegistry.get(currentNode)) {
+        for (NodeId<IdType> childId: neighborRegistry.get(currentNode)) {
             if (!used.contains(childId)) {
                 double childAngle = baseAngle + angleRegistry.get(childId);
                 double childX = currentX + Math.cos(childAngle) * parentVectorX - Math.sin(childAngle) * parentVectorY;
