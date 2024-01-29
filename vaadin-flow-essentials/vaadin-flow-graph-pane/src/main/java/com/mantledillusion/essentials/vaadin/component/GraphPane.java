@@ -31,15 +31,21 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
         private int x, y, orbit;
         private final NodeType node;
         private final int width, height;
+        private final Function<NodeType, Integer> minClusterSizeFunction;
+        private final Function<NodeType, Integer> maxClusterSizeFunction;
         private final BiFunction<NodeType, NodeType, Clusterability> clusterPredicate;
         private final BiFunction<NodeType, NodeType, NodeType> clusterFunction;
 
         private NodeComponent(NodeType node, int width, int height,
+                              Function<NodeType, Integer> minClusterSizeFunction,
+                              Function<NodeType, Integer> maxClusterSizeFunction,
                               BiFunction<NodeType, NodeType, Clusterability> clusterPredicate,
                               BiFunction<NodeType, NodeType, NodeType> clusterFunction) {
             this.node = node;
             this.width = width;
             this.height = height;
+            this.minClusterSizeFunction = minClusterSizeFunction;
+            this.maxClusterSizeFunction = maxClusterSizeFunction;
             this.clusterPredicate = clusterPredicate;
             this.clusterFunction = clusterFunction;
             setPadding(false);
@@ -89,12 +95,12 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
 
         @Override
         public int getMinClusterSize() {
-            return GraphPane.this.defaultClusterMinSize;
+            return this.minClusterSizeFunction.apply(this.node);
         }
 
         @Override
         public int getMaxClusterSize() {
-            return GraphPane.this.defaultClusterMaxSize;
+            return this.maxClusterSizeFunction.apply(this.node);
         }
 
         @Override
@@ -105,7 +111,9 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
         @Override
         public NodeComponent<NodeType> clusterWith(NodeComponent<NodeType> other) {
             return new NodeComponent<>(this.clusterFunction.apply(this.node, other.node),
-                    this.width, this.height, this.clusterPredicate, this.clusterFunction);
+                    this.width, this.height,
+                    this.minClusterSizeFunction, this.maxClusterSizeFunction,
+                    this.clusterPredicate, this.clusterFunction);
         }
     }
 
@@ -279,8 +287,11 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
                 throw new IllegalArgumentException("Cannot set the height to a value <=0");
             }
 
-            this.nodeRegistry.put(id, new NodeComponent<>(node, maxNodeWidth, maxNodeHeight,
-                    this.clusterPredicate, this.clusterFunction).register(id, neighbors));
+            this.nodeRegistry.put(id, new NodeComponent<>(
+                    node, maxNodeWidth, maxNodeHeight,
+                    this.minClusterSizeFunction, this.maxClusterSizeFunction,
+                    this.clusterPredicate, this.clusterFunction
+            ).register(id, neighbors));
 
             Set<NodeIdType> neighborIdSet = neighbors == null ? new HashSet<>() : new HashSet<>(Arrays.asList(neighbors));
             neighborIdSet.remove(null);
