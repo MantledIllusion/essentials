@@ -99,11 +99,13 @@ public class NodeEssentials {
                 // FILTER OUT CLUSTERS ...
                 .filter(cluster -> cluster.stream()
                         // ... WHERE AT LEAST ONE OF THE NODES REQUIRES A BIGGER CLUSTER
-                        .allMatch(child -> nodeRegistry.get(child).getMinClusterSize() <= cluster.size()))
+                        .allMatch(child -> candidateRegistry.get(child).isEmpty()
+                                || nodeRegistry.get(child).getMinClusterSize() <= cluster.size()))
                 // FILTER OUT CLUSTERS ...
                 .filter(cluster -> cluster.stream()
                         // ... WHERE AT LEAST ONE OF THE NODES REQUIRES A SMALLER CLUSTER
-                        .allMatch(child -> nodeRegistry.get(child).getMaxClusterSize() >= cluster.size()))
+                        .allMatch(child -> candidateRegistry.get(child).isEmpty()
+                                || nodeRegistry.get(child).getMaxClusterSize() >= cluster.size()))
                 // SORT CLUSTERS BY SIZE TO HAVE THE LARGEST CLUSTERS FIRST
                 .sorted(COMP_SET_SIZE_DESC)
                 // FILTER CLUSTERS FOR THOSE WHOSE NODES ARE STILL AVAILABLE
