@@ -476,7 +476,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Returns the default width to use when adding nodes using {@link ComponentGraphBuilder#addNode(Object, Component, Object[])}.
+     * Returns the default width to use when adding nodes without specific sizes.
      *
      * @return The node's width, &gt; 0
      */
@@ -485,7 +485,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Sets the default width to use when adding nodes using {@link ComponentGraphBuilder#addNode(Object, Component, Object[])}.
+     * Sets the default width to use when adding nodes without specific sizes.
      *
      * @param defaultMaxNodeWidth The node's width; &gt; 0.
      */
@@ -497,7 +497,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Returns the default width to use when adding nodes using {@link ComponentGraphBuilder#addNode(Object, Component, Object[])}.
+     * Returns the default width to use when adding nodes without specific sizes.
      *
      * @return The node's height, &gt; 0
      */
@@ -506,7 +506,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Sets the default height to use when adding nodes using {@link ComponentGraphBuilder#addNode(Object, Component, Object[])}.
+     * Sets the default height to use when adding nodes without specific sizes.
      *
      * @param defaultMaxNodeHeight The node's height; &gt; 0.
      */
@@ -518,7 +518,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Returns the default minimum size to use when clustering nodes using {@link ComponentGraphBuilder#rebuild(Function, BiPredicate)}.
+     * Returns the default minimum size to use when clustering nodes without a specific size retriever.
      *
      * @return The cluster's min size, &ge; 0
      */
@@ -527,7 +527,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Sets the default minimum size to use when clustering nodes using {@link ComponentGraphBuilder#rebuild(Function, BiPredicate)}.
+     * Sets the default minimum size to use when clustering nodes without a specific size retriever.
      *
      * @param defaultClusterMinSize The cluster's min size; &ge; 0.
      */
@@ -539,7 +539,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Returns the default maximum size to use when clustering nodes using {@link ComponentGraphBuilder#rebuild(Function, BiPredicate)}.
+     * Returns the default maximum size to use when clustering nodes without a specific size retriever.
      *
      * @return The cluster's max size, &ge; 0
      */
@@ -548,7 +548,7 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
     }
 
     /**
-     * Sets the default maximum size to use when clustering nodes using {@link ComponentGraphBuilder#rebuild(Function, BiPredicate)}.
+     * Sets the default maximum size to use when clustering nodes without a specific size retriever.
      *
      * @param defaultClusterMaxSize The cluster's max size; &ge; 0.
      */
