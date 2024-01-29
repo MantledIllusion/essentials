@@ -243,40 +243,8 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
             this.clusterFunction = clusterFunction;
         }
 
-        /**
-         * Factory method that adds the given {@link NodeType} to the graph by using the given ID.
-         * <p>
-         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
-         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
-         * <p>
-         * Used the default width and height for the node.
-         *
-         * @param id The ID to register the node under; might <b>not</b> be null.
-         * @param node The node to distribute as the node; might <b>not</b> be null.
-         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
-         * @return this
-         */
-        @SafeVarargs
-        public final BuilderType addNode(NodeIdType id, NodeType node, NodeIdType... neighbors) {
-            return addNode(id, node, GraphPane.this.defaultMaxNodeWidth, GraphPane.this.defaultMaxNodeHeight, neighbors);
-        }
-
-        /**
-         * Factory method that adds the given {@link NodeType} to the graph by using the given ID.
-         * <p>
-         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
-         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
-         *
-         * @param id The ID to register the node under; might <b>not</b> be null.
-         * @param node The node to distribute as the node; might <b>not</b> be null.
-         * @param maxNodeWidth The maximum width the given component is allowed to grow; smaller components will be centered.
-         * @param maxNodeHeight The maximum height the given component is allowed to grow; smaller components will be centered.
-         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
-         * @return this
-         */
-        @SafeVarargs
         @SuppressWarnings("unchecked")
-        public final BuilderType addNode(NodeIdType id, NodeType node, int maxNodeWidth, int maxNodeHeight, NodeIdType... neighbors) {
+        protected BuilderType add(NodeIdType id, NodeType node, int maxNodeWidth, int maxNodeHeight, NodeIdType... neighbors) {
             if (id == null) {
                 throw new IllegalArgumentException("Cannot register a node for a null ID");
             } else if (node == null) {
@@ -358,6 +326,42 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
                     (node, other) -> Node.Clusterability.DENY, (node, other) -> {throw new IllegalStateException();});
         }
 
+        /**
+         * Factory method that adds the given {@link Component} to the graph by using the given ID.
+         * <p>
+         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
+         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
+         * <p>
+         * Used the default width and height for the node.
+         *
+         * @param id The ID to register the node under; might <b>not</b> be null.
+         * @param node The node to distribute as the node; might <b>not</b> be null.
+         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
+         * @return this
+         */
+        @SafeVarargs
+        public final ComponentGraphBuilder addNode(NodeIdType id, Component node, NodeIdType... neighbors) {
+            return addNode(id, node, GraphPane.this.defaultMaxNodeWidth, GraphPane.this.defaultMaxNodeHeight, neighbors);
+        }
+
+        /**
+         * Factory method that adds the given {@link Component} to the graph by using the given ID.
+         * <p>
+         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
+         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
+         *
+         * @param id The ID to register the node under; might <b>not</b> be null.
+         * @param node The node to distribute as the node; might <b>not</b> be null.
+         * @param maxNodeWidth The maximum width the given component is allowed to grow; smaller components will be centered.
+         * @param maxNodeHeight The maximum height the given component is allowed to grow; smaller components will be centered.
+         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
+         * @return this
+         */
+        @SafeVarargs
+        public final ComponentGraphBuilder addNode(NodeIdType id, Component node, int maxNodeWidth, int maxNodeHeight, NodeIdType... neighbors) {
+            return super.add(id, node, maxNodeWidth, maxNodeHeight, neighbors);
+        }
+
         @Override
         protected Component renderNode(Component node) {
             return node;
@@ -377,6 +381,42 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
             super((node) -> {throw new IllegalStateException();}, (node) -> {throw new IllegalStateException();},
                     (node, other) -> Node.Clusterability.DENY, (node, other) -> {throw new IllegalStateException();});
             this.nodeRenderer = nodeRenderer;
+        }
+
+        /**
+         * Factory method that adds the given {@link NodeType} to the graph by using the given ID.
+         * <p>
+         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
+         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
+         * <p>
+         * Used the default width and height for the node.
+         *
+         * @param id The ID to register the node under; might <b>not</b> be null.
+         * @param node The node to distribute as the node; might <b>not</b> be null.
+         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
+         * @return this
+         */
+        @SafeVarargs
+        public final NodeGraphBuilder<NodeType> addNode(NodeIdType id, NodeType node, NodeIdType... neighbors) {
+            return addNode(id, node, GraphPane.this.defaultMaxNodeWidth, GraphPane.this.defaultMaxNodeHeight, neighbors);
+        }
+
+        /**
+         * Factory method that adds the given {@link NodeType} to the graph by using the given ID.
+         * <p>
+         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
+         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
+         *
+         * @param id The ID to register the node under; might <b>not</b> be null.
+         * @param node The node to distribute as the node; might <b>not</b> be null.
+         * @param maxNodeWidth The maximum width the given component is allowed to grow; smaller components will be centered.
+         * @param maxNodeHeight The maximum height the given component is allowed to grow; smaller components will be centered.
+         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
+         * @return this
+         */
+        @SafeVarargs
+        public final NodeGraphBuilder<NodeType> addNode(NodeIdType id, NodeType node, int maxNodeWidth, int maxNodeHeight, NodeIdType... neighbors) {
+            return super.add(id, node, maxNodeWidth, maxNodeHeight, neighbors);
         }
 
         @Override
@@ -400,6 +440,42 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
                     (nodes, others) -> nodes.stream().allMatch(node -> others.stream().allMatch(other -> clusterPredicate.test(node, other))) ? Node.Clusterability.SIBLINGS : Node.Clusterability.DENY,
                     (nodes, others) -> Stream.concat(nodes.stream(), others.stream()).collect(Collectors.toList()));
             this.clusterRenderer = clusterRenderer;
+        }
+
+        /**
+         * Factory method that adds the given {@link NodeType} to the graph by using the given ID.
+         * <p>
+         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
+         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
+         * <p>
+         * Used the default width and height for the node.
+         *
+         * @param id The ID to register the node under; might <b>not</b> be null.
+         * @param node The node to distribute as the node; might <b>not</b> be null.
+         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
+         * @return this
+         */
+        @SafeVarargs
+        public final ClusterGraphBuilder<NodeType> addNode(NodeIdType id, NodeType node, NodeIdType... neighbors) {
+            return addNode(id, node, GraphPane.this.defaultMaxNodeWidth, GraphPane.this.defaultMaxNodeHeight, neighbors);
+        }
+
+        /**
+         * Factory method that adds the given {@link NodeType} to the graph by using the given ID.
+         * <p>
+         * The neighbors declared for the node might be of single- or bi-directional relationships. They are not
+         * required to be added by the time this node is added, but by the time {@link #render()} is invoked.
+         *
+         * @param id The ID to register the node under; might <b>not</b> be null.
+         * @param node The node to distribute as the node; might <b>not</b> be null.
+         * @param maxNodeWidth The maximum width the given component is allowed to grow; smaller components will be centered.
+         * @param maxNodeHeight The maximum height the given component is allowed to grow; smaller components will be centered.
+         * @param neighbors The IDs of all neighbors the node has; might be null or empty.
+         * @return this
+         */
+        @SafeVarargs
+        public final ClusterGraphBuilder<NodeType> addNode(NodeIdType id, NodeType node, int maxNodeWidth, int maxNodeHeight, NodeIdType... neighbors) {
+            return super.add(id, Collections.singletonList(node), maxNodeWidth, maxNodeHeight, neighbors);
         }
 
         @Override
