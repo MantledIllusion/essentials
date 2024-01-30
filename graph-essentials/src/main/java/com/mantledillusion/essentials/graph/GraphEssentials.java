@@ -184,6 +184,9 @@ public class GraphEssentials {
                 }
             }
 
+            // REMOVE THE CLUSTER'S NODES FROM ITS NEIGHBORS
+            clusterNeighbors.removeAll(cluster);
+
             //  REGISTER CLUSTER'S NEIGHBORS
             neighborRegistry.put(clusterId, clusterNeighbors);
 
