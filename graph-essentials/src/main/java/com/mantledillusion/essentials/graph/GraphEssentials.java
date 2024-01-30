@@ -148,13 +148,12 @@ public class GraphEssentials {
             for (NodeId<IdType> nodeId : cluster) {
                 // CLUSTER NODE WITH REST OF THE CLUSTER
                 if (clusterNode == null) {
-                    clusterNode = nodeRegistry.get(nodeId);
+                    // REMOVE INDIVIDUAL NODE FROM REGISTRY
+                    clusterNode = nodeRegistry.remove(nodeId);
                 } else {
-                    clusterNode = clusterNode.clusterWith(nodeRegistry.get(nodeId));
+                    // REMOVE NODE FROM REGISTRY AND CLUSTER
+                    clusterNode = clusterNode.clusterWith(nodeRegistry.remove(nodeId));
                 }
-
-                // REMOVE INDIVIDUAL NODE FROM REGISTRY
-                nodeRegistry.remove(nodeId);
 
                 // REMOVE INDIVIDUAL NODE'S NEIGHBORS FROM REGISTRY
                 if (neighborRegistry.containsKey(nodeId)) {
