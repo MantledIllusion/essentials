@@ -4,17 +4,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class NodeEssentials {
+class NodeEssentials {
 
     private static final Comparator<Set<?>> COMP_SET_SIZE_ASC = Comparator.comparingInt(Set::size);
     private static final Comparator<Set<?>> COMP_SET_SIZE_DESC = COMP_SET_SIZE_ASC.reversed();
 
-    public static <NodeType extends Node<NodeType>, IdType> Map<NodeId<IdType>, NodeType> registerNodes(Collection<Node.Registration<NodeType, IdType>> nodes) {
+    static <NodeType extends Node<NodeType>, IdType> Map<NodeId<IdType>, NodeType> registerNodes(Collection<Node.Registration<NodeType, IdType>> nodes) {
         return nodes.stream().collect(Collectors.toMap(registration -> new NodeId<>(registration.getIdentifier()), Node.Registration::getNode));
     }
 
-    public static <NodeType extends Node<NodeType>, IdType> Map<NodeId<IdType>, Set<NodeId<IdType>>> registerNeighbors(Map<NodeId<IdType>, NodeType> nodeRegistry,
-                                                                                                                       Collection<Node.Registration<NodeType, IdType>> nodes) {
+    static <NodeType extends Node<NodeType>, IdType> Map<NodeId<IdType>, Set<NodeId<IdType>>> registerNeighbors(Map<NodeId<IdType>, NodeType> nodeRegistry,
+                                                                                                                Collection<Node.Registration<NodeType, IdType>> nodes) {
         Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry = new HashMap<>();
 
         nodes.forEach(registration -> {
@@ -46,10 +46,10 @@ public class NodeEssentials {
         return neighborRegistry;
     }
 
-    public static <IdType> void determineDepths(Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
-                                                Map<NodeId<IdType>, Integer> depthRegistry,
-                                                NodeId<IdType> currentNode,
-                                                Integer depth) {
+    static <IdType> void determineDepths(Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
+                                         Map<NodeId<IdType>, Integer> depthRegistry,
+                                         NodeId<IdType> currentNode,
+                                         Integer depth) {
         // ITERATE CURRENT NODE'S NEIGHBORS
         for (NodeId<IdType> neighbor: neighborRegistry.get(currentNode)) {
             // DETERMINE WHETHER THE NEIGHBORS DEPTH HAS NOT BEEN DETERMINED,
@@ -61,10 +61,10 @@ public class NodeEssentials {
         }
     }
 
-    public static <NodeType extends Node<NodeType>, IdType> Map<NodeId<IdType>, Set<NodeId<IdType>>> clusterSiblings(Map<NodeId<IdType>, NodeType> nodeRegistry,
-                                                                                                                     Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
-                                                                                                                     NodeId<IdType> currentNode,
-                                                                                                                     Set<NodeId<IdType>> excluded) {
+    static <NodeType extends Node<NodeType>, IdType> Map<NodeId<IdType>, Set<NodeId<IdType>>> clusterSiblings(Map<NodeId<IdType>, NodeType> nodeRegistry,
+                                                                                                              Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
+                                                                                                              NodeId<IdType> currentNode,
+                                                                                                              Set<NodeId<IdType>> excluded) {
         // ITERATE OVER ALL NEIGHBORS OF THE CURRENT NODE
         Map<NodeId<IdType>, Set<NodeId<IdType>>> candidateRegistry = neighborRegistry.get(currentNode).stream()
                 .collect(Collectors.toMap(
@@ -124,7 +124,6 @@ public class NodeEssentials {
                 // SORT CLUSTERS BY SIZE TO HAVE THE LARGEST CLUSTERS FIRST
                 .sorted(COMP_SET_SIZE_DESC)
                 // FILTER CLUSTERS FOR THOSE WHOSE NODES ARE STILL AVAILABLE
-                // TODO correct like this or does filter and peek need to be done in one step?
                 .filter(neighbors::containsAll)
                 .peek(neighbors::removeAll)
                 // COLLECT CLUSTERS
@@ -136,7 +135,7 @@ public class NodeEssentials {
                 ));
     }
 
-    public static <IdType> Stream<Set<NodeId<IdType>>> streamSubSets(Set<NodeId<IdType>> children) {
+    static <IdType> Stream<Set<NodeId<IdType>>> streamSubSets(Set<NodeId<IdType>> children) {
         if (children.isEmpty()) {
             return Stream.empty();
         } else {
@@ -148,7 +147,7 @@ public class NodeEssentials {
         }
     }
 
-    public static <T> Set<T> union(Set<T> these, Set<T> those) {
+    static <T> Set<T> union(Set<T> these, Set<T> those) {
         return Stream.concat(these.stream(), those.stream()).collect(Collectors.toSet());
     }
 }
