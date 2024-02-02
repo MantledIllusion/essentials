@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 @Tag("div")
 public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyle {
 
-    private final class NodeComponent<NodeType> extends VerticalLayout implements Node<NodeComponent<NodeType>> {
+    private static final class NodeComponent<NodeType> extends VerticalLayout implements Node<NodeComponent<NodeType>> {
 
         private int x, y, orbit;
         private final NodeType node;
@@ -533,11 +533,11 @@ public class GraphPane<NodeIdType> extends Component implements HasSize, HasStyl
      * nodes joined together in clusters by the given predicate.
      *
      * @param <NodeType> The type of node to render
-     * @param clusterRenderer The renderer to turn a node hub into a {@link Component} with; might <b>not</b> be null.
      * @param clusterPredicate A predicate to determine whether two nodes are able to join a cluster together; might <b>not</b> be null.
+     * @param clusterRenderer The renderer to turn a node hub into a {@link Component} with; might <b>not</b> be null.
      * @return A new {@link ComponentGraphBuilder} instance, never null
      */
-    public <NodeType> ClusterGraphBuilder<NodeType> rebuild(Function<List<NodeType>, Component> clusterRenderer, BiPredicate<NodeType, NodeType> clusterPredicate) {
+    public <NodeType> ClusterGraphBuilder<NodeType> rebuild(BiPredicate<NodeType, NodeType> clusterPredicate, Function<List<NodeType>, Component> clusterRenderer) {
         return rebuild(node -> this.defaultClusterMinSize, node -> this.defaultClusterMaxSize, clusterPredicate, clusterRenderer);
     }
 
