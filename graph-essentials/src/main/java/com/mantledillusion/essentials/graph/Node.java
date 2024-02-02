@@ -104,12 +104,34 @@ public interface Node<NodeType extends Node<NodeType>> {
      */
     void setY(double y);
 
+    /**
+     * Returns the minimum count of other nodes this node requires to allow clustered.
+     *
+     * @return The minimum count
+     */
     int getMinClusterSize();
 
+    /**
+     * Returns the maximum count of other nodes this node prevents being clustered with.
+     *
+     * @return The maximum count
+     */
     int getMaxClusterSize();
 
+    /**
+     * Returns the {@link Clusterability} this node allows for the given node.
+     *
+     * @param other The node to potentially cluster with; might <b>not</b> be null.
+     * @return The {@link Clusterability}, never null
+     */
     Clusterability clusterableWith(NodeType other);
 
+    /**
+     * A combination of this node and the given node.
+     *
+     * @param other The node to cluster with; might <b>not</b> be null.
+     * @return A combined {@link Node}, never null
+     */
     NodeType clusterWith(NodeType other);
 
     /**
