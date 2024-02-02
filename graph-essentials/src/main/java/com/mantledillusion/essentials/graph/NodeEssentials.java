@@ -46,6 +46,21 @@ public class NodeEssentials {
         return neighborRegistry;
     }
 
+    public static <IdType> void determineDepths(Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
+                                                Map<NodeId<IdType>, Integer> depthRegistry,
+                                                NodeId<IdType> currentNode,
+                                                Integer depth) {
+        // ITERATE CURRENT NODE'S NEIGHBORS
+        for (NodeId<IdType> neighbor: neighborRegistry.get(currentNode)) {
+            // DETERMINE WHETHER THE NEIGHBORS DEPTH HAS NOT BEEN DETERMINED,
+            // OR ITS DEPTH FROM THE CURRENT NODE IS SHALLOWER THAN DETERMINED PREVIOUSLY
+            if (!depthRegistry.containsKey(neighbor) || depthRegistry.get(neighbor) > depth) {
+                depthRegistry.put(neighbor, depth);
+                determineDepths(neighborRegistry, depthRegistry, currentNode, depth + 1);
+            }
+        }
+    }
+
     public static <NodeType extends Node<NodeType>, IdType> Map<NodeId<IdType>, Set<NodeId<IdType>>> clusterSiblings(Map<NodeId<IdType>, NodeType> nodeRegistry,
                                                                                                                      Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
                                                                                                                      NodeId<IdType> currentNode,

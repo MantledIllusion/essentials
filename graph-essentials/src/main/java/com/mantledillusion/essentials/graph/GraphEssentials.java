@@ -101,30 +101,28 @@ public class GraphEssentials {
     private static <IdType> NodeId<IdType> determineHeaviestNode(Set<NodeId<IdType>> graph,
                                                                  Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry) {
         return graph.stream()
-                .collect(Collectors.toMap(n -> n, n -> determineWeight(neighborRegistry, n, new HashSet<>(), 1)))
+                .collect(Collectors.toMap(n -> n, n -> determineWeight(neighborRegistry, n)))
                 .entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .orElse(null);
     }
 
-    private static <IdType> double determineWeight(Map<IdType, Set<IdType>> neighborRegistry,
-                                                   IdType currentNode,
-                                                   Set<IdType> used,
-                                                   int depth) {
-        // REGISTER CURRENT NODE
-        used.add(currentNode);
+    private static <IdType> double determineWeight(Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
+                                                   NodeId<IdType> currentNode) {
+        // REGISTER THE DEPTHS FROM THE CURRENT NODE
+        Map<NodeId<IdType>, Integer> depthRegistry = new HashMap<>();
+        depthRegistry.put(currentNode, 1);
 
-        // TRIGGER DETERMINING WEIGHTS OF CURRENT NODE'S CHILDREN AND SUM THEM
-        Double neighborWeights = neighborRegistry.get(currentNode).stream()
-                .filter(n -> !used.contains(n))
-                .map(n -> determineWeight(neighborRegistry, n, used, depth+1))
-                .reduce(Double::sum)
-                .orElse(0d);
+        // DETERMINE THE DEPTHS IF THE CURRENT NODE WAS THE ROOT
+        NodeEssentials.determineDepths(neighborRegistry, depthRegistry, currentNode, 2);
 
-        // DETERMINE CURRENT NODE'S OWN WEIGHT BY ADDING THE BASE WEIGHT 1
-        // AND THE ACCUMULATED CHILD WEIGHTS IN RELATION TO THEIR DEPTH
-        return 1 + neighborWeights / depth;
+        // ITERATE ALL DEPTHS
+        return depthRegistry.values().stream()
+                // DETERMINE THE WEIGHT OF EACH NODE DEPENDING ON ITS DEPTH FROM THE ROOT
+                .mapToDouble(nodeDepth -> 1.0 / nodeDepth)
+                // SUM UP ALL WEIGHTS
+                .sum();
     }
 
     private static <NodeType extends Node<NodeType>, IdType> void determineClusters(Map<NodeId<IdType>, NodeType> nodeRegistry,
@@ -133,9 +131,6 @@ public class GraphEssentials {
                                                                                     Set<NodeId<IdType>> used) {
         // DETERMINE CLUSTERS OF THE CURRENT NODE'S NEIGHBORS
         Map<NodeId<IdType>, Set<NodeId<IdType>>> clusters = NodeEssentials.clusterSiblings(nodeRegistry, neighborRegistry, currentNode, used);
-
-        // EXCLUDE CLUSTERS FROM BEING CLUSTERED BY THEIR CHILDREN
-        used.addAll(clusters.keySet());
 
         // CLUSTER NODES AND UPDATE REGISTRIES
         for (NodeId<IdType> clusterId: clusters.keySet()) {
@@ -189,7 +184,12 @@ public class GraphEssentials {
             //  REGISTER CLUSTER'S NEIGHBORS
             neighborRegistry.put(clusterId, clusterNeighbors);
 
-            // RECURSIVELY CLUSTER NEIGHBORS OF CLUSTER
+            // EXCLUDE CLUSTER FROM BEING CLUSTERED BY THEIR CHILDREN
+            used.add(clusterId);
+        }
+
+        // RECURSIVELY CLUSTER NEIGHBORS OF CLUSTERS
+        for (NodeId<IdType> clusterId: clusters.keySet()) {
             determineClusters(nodeRegistry, neighborRegistry, clusterId, used);
         }
     }
