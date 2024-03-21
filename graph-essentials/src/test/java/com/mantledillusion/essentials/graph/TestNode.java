@@ -3,6 +3,7 @@ package com.mantledillusion.essentials.graph;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 class TestNode implements Node<TestNode> {
 
@@ -63,7 +64,10 @@ class TestNode implements Node<TestNode> {
 
     @Override
     public TestNode clusterWith(TestNode other) {
-        return new TestNode(NodeEssentials.union(this.cluster, other.cluster));
+        return new TestNode(NodeEssentials.union(this.cluster, other.cluster).stream()
+                .filter(this.cluster::contains)
+                .filter(other.cluster::contains)
+                .collect(Collectors.toSet()));
     }
 
     @Override

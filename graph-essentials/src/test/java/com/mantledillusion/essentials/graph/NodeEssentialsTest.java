@@ -12,30 +12,30 @@ public class NodeEssentialsTest {
 
     @Test
     public void testDoNotCluster() {
-        Collection<Set<NodeId<String>>> clusters = cluster(
+        Set<NodeId<String>> clusters = cluster(
                 new TestNode(1).register("A"),
                 new TestNode(2).register("B")
         );
 
-        assertContainsAll(clusters, "A", "B");
-        assertContainsSubset(clusters, "A");
-        assertContainsSubset(clusters, "B");
+        assertContainsAllNodes(clusters, "A", "B");
+        assertContainsCluster(clusters, "A");
+        assertContainsCluster(clusters, "B");
     }
 
     @Test
     public void testDoCluster() {
-        Collection<Set<NodeId<String>>> clusters = cluster(
+        Set<NodeId<String>> clusters = cluster(
                 new TestNode(1).register("A"),
                 new TestNode(1).register("B")
         );
 
-        assertContainsAll(clusters, "A", "B");
-        assertContainsSubset(clusters, "A", "B");
+        assertContainsAllNodes(clusters, "A", "B");
+        assertContainsCluster(clusters, "A", "B");
     }
 
     @Test
     public void testPrioritizeClusterSize() {
-        Collection<Set<NodeId<String>>> clusters = cluster(
+        Set<NodeId<String>> clusters = cluster(
                 new TestNode(1, 3).register("A"),
                 new TestNode(2, 3).register("B"),
                 new TestNode(2, 4).register("C"),
@@ -43,13 +43,13 @@ public class NodeEssentialsTest {
                 new TestNode(2, 4).register("E")
         );
 
-        assertContainsAll(clusters, "A", "B", "C", "D", "E");
-        assertContainsSubset(clusters, "A");
-        assertContainsSubset(clusters, "B", "C", "D", "E");
+        assertContainsAllNodes(clusters, "A", "B", "C", "D", "E");
+        assertContainsCluster(clusters, "A");
+        assertContainsCluster(clusters, "B", "C", "D", "E");
     }
 
     @SafeVarargs
-    private final Collection<Set<NodeId<String>>> cluster(Node.Registration<TestNode, String>... children) {
+    private final Set<NodeId<String>> cluster(Node.Registration<TestNode, String>... children) {
         String[] childIds = Arrays.stream(children)
                 .map(Node.Registration::getIdentifier)
                 .toArray(String[]::new);
@@ -64,17 +64,24 @@ public class NodeEssentialsTest {
 
         Map<NodeId<String>, Set<NodeId<String>>> neighborRegistry = NodeEssentials.registerNeighbors(nodeRegistry, nodes);
 
-        return NodeEssentials.clusterSiblings(nodeRegistry, neighborRegistry, new NodeId<>("X"), Collections.singleton(new NodeId<>("X"))).values();
+        return NodeEssentials.clusterSiblings(nodeRegistry, neighborRegistry, new NodeId<>("X"), Collections.singleton(new NodeId<>("X")));
     }
 
-    private void assertContainsAll(Collection<Set<NodeId<String>>> clusters, String... childIds) {
-        Set<NodeId<String>> children = Arrays.stream(childIds).map(NodeId::new).collect(Collectors.toSet());
-        assertTrue(clusters.stream().allMatch(children::removeAll), String.format("The clusters %s have at least one overlap", clusters));
-        assertTrue(children.isEmpty(), String.format("The clusters %s do not contain the children %s", clusters, children));
+    private void assertContainsAllNodes(Set<NodeId<String>> clusters, String... nodeIds) {
+        Set<String> nodes = Arrays.stream(nodeIds).collect(Collectors.toSet());
+
+        clusters.stream().reduce((cluster, other) -> {
+            assertFalse(cluster.getIds().stream().anyMatch(other.getIds()::contains),
+                    String.format("The clusters %s and %s have at least one overlap", cluster, other));
+            return cluster.clusterWith(other);
+        }).map(NodeId::getIds).orElse(Collections.emptySet()).forEach(nodes::remove);
+
+        assertTrue(nodes.isEmpty(), String.format("The clusters %s do not contain the children %s", clusters, nodes));
     }
 
-    private void assertContainsSubset(Collection<Set<NodeId<String>>> clusters, String... childIds) {
-        Set<NodeId<String>> children = Arrays.stream(childIds).map(NodeId::new).collect(Collectors.toSet());
-        assertTrue(clusters.contains(children), String.format("The clusters %s to not contain the subset %s", clusters, children));
+    private void assertContainsCluster(Set<NodeId<String>> clusters, String... clusterIds) {
+        Set<String> cluster = Arrays.stream(clusterIds).collect(Collectors.toSet());
+        assertTrue(clusters.stream().map(NodeId::getIds).anyMatch(other -> other.equals(cluster)),
+                String.format("The clusters %s to not contain the subset %s", clusters, cluster));
     }
 }
