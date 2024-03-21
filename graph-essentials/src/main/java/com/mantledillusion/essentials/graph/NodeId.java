@@ -1,5 +1,6 @@
 package com.mantledillusion.essentials.graph;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
@@ -24,6 +25,24 @@ public class NodeId<IdType> {
 
     private NodeId(Set<IdType> ids) {
         this.ids = ids;
+    }
+
+    /**
+     * Returns the IDs contained by the cluster this @{@link NodeId} identifies.
+     *
+     * @return The IDs, never null
+     */
+    public Set<IdType> getIds() {
+        return this.ids;
+    }
+
+    /**
+     * Returns the size of the cluster this {@link NodeId} identifies.
+     *
+     * @return The size
+     */
+    public int getClusterSize() {
+        return this.ids.size();
     }
 
     /**

@@ -47,7 +47,8 @@ public class GraphEssentials {
                     // DETERMINE THE HEAVIEST NODES FOR EACH OF THESE UNCONNECTED SUB GRAPHS
                     .map(subGraph -> determineHeaviestNode(subGraph, neighborRegistry))
                     // ADD THAT SUB GRAPH ROOT NODE AS A NEIGHBOR TO THE ROOT
-                    .forEach(subGraphRoot -> neighborRegistry.get(graphRoot).add(subGraphRoot));
+                    .peek(subGraphRoot -> neighborRegistry.get(graphRoot).add(subGraphRoot))
+                    .forEach(subGraphRoot -> neighborRegistry.get(subGraphRoot).add(graphRoot));
 
             // CLUSTER CHILD NODES FROM THE ROOT DOWN
             determineClusters(nodeRegistry, neighborRegistry, graphRoot, new HashSet<>(Collections.singleton(graphRoot)));
@@ -129,67 +130,14 @@ public class GraphEssentials {
                                                                                     Map<NodeId<IdType>, Set<NodeId<IdType>>> neighborRegistry,
                                                                                     NodeId<IdType> currentNode,
                                                                                     Set<NodeId<IdType>> used) {
-        // DETERMINE CLUSTERS OF THE CURRENT NODE'S NEIGHBORS
-        Map<NodeId<IdType>, Set<NodeId<IdType>>> clusters = NodeEssentials.clusterSiblings(nodeRegistry, neighborRegistry, currentNode, used);
-
         // CLUSTER NODES AND UPDATE REGISTRIES
-        for (NodeId<IdType> clusterId: clusters.keySet()) {
-            Set<NodeId<IdType>> cluster = clusters.get(clusterId);
+        Set<NodeId<IdType>> clusters = NodeEssentials.clusterSiblings(nodeRegistry, neighborRegistry, currentNode, used);
 
-            NodeType clusterNode = null;
-            Set<NodeId<IdType>> clusterNeighbors = new HashSet<>();
-
-            // CLUSTER NODES
-            for (NodeId<IdType> nodeId : cluster) {
-                // CLUSTER NODE WITH REST OF THE CLUSTER
-                if (clusterNode == null) {
-                    // REMOVE INDIVIDUAL NODE FROM REGISTRY
-                    clusterNode = nodeRegistry.remove(nodeId);
-                } else {
-                    // REMOVE NODE FROM REGISTRY AND CLUSTER
-                    clusterNode = clusterNode.clusterWith(nodeRegistry.remove(nodeId));
-                }
-
-                // REMOVE INDIVIDUAL NODE'S NEIGHBORS FROM REGISTRY
-                if (neighborRegistry.containsKey(nodeId)) {
-                    clusterNeighbors.addAll(neighborRegistry.remove(nodeId));
-                }
-            }
-
-            // REGISTER CLUSTER AS NODE
-            nodeRegistry.put(clusterId, clusterNode);
-
-            // REGISTER CLUSTER AS NEIGHBOR
-            for (Set<NodeId<IdType>> neighbors: neighborRegistry.values()) {
-                boolean isNeighbor = false;
-
-                // REMOVE ANY OF THE CLUSTERS NODES REGISTERED AS NEIGHBORS
-                Iterator<NodeId<IdType>> neighborIterator = neighbors.iterator();
-                while (neighborIterator.hasNext()) {
-                    if (cluster.contains(neighborIterator.next())) {
-                        neighborIterator.remove();
-                        isNeighbor = true;
-                    }
-                }
-
-                // REGISTER THE CLUSTER INSTEAD
-                if (isNeighbor) {
-                    neighbors.add(clusterId);
-                }
-            }
-
-            // REMOVE THE CLUSTER'S NODES FROM ITS NEIGHBORS
-            clusterNeighbors.removeAll(cluster);
-
-            //  REGISTER CLUSTER'S NEIGHBORS
-            neighborRegistry.put(clusterId, clusterNeighbors);
-
-            // EXCLUDE CLUSTER FROM BEING CLUSTERED BY THEIR CHILDREN
-            used.add(clusterId);
-        }
+        // REGISTER NEW FOUND CLUSTERS AS USED
+        used.addAll(clusters);
 
         // RECURSIVELY CLUSTER NEIGHBORS OF CLUSTERS
-        for (NodeId<IdType> clusterId: clusters.keySet()) {
+        for (NodeId<IdType> clusterId: clusters) {
             determineClusters(nodeRegistry, neighborRegistry, clusterId, used);
         }
     }
