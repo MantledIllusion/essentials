@@ -46,6 +46,7 @@
 		<module>object-essentials</module>
 		<module>string-essentials</module>
 		<module>reflection-essentials</module>
+		<module>spring5-essentials</module>
 		<module>vaadin-essentials</module>
 		<module>vaadin-flow-essentials</module>
 	</modules>
