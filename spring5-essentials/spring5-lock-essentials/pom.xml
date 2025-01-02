@@ -5,11 +5,11 @@
 	<parent>
 		<groupId>com.mantledillusion.essentials</groupId>
 		<artifactId>spring5-essentials-parentpom</artifactId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>1.0.0</version>
 	</parent>
 
 	<artifactId>spring5-lock-essentials</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 
 	<name>spring5-lock-essentials</name>
 	<description>Spring 5 lock registry support for bean methods.</description>
