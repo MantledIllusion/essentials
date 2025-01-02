@@ -9,7 +9,7 @@
 	</parent>
 
 	<artifactId>spring5-lock-essentials</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1-SNAPSHOT</version>
 
 	<name>spring5-lock-essentials</name>
 	<description>Spring 5 lock registry support for bean methods.</description>
