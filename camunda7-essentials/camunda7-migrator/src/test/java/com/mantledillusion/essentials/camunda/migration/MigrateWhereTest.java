@@ -3,7 +3,7 @@ package com.mantledillusion.essentials.camunda.migration;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.repository.ProcessDefinition;
 import org.camunda.bpm.engine.runtime.ProcessInstance;
-import org.camunda.bpm.extension.junit5.test.ProcessEngineExtension;
+import org.camunda.bpm.engine.test.junit5.ProcessEngineExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 

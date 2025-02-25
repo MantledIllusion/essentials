@@ -10,5 +10,6 @@
         <property name="jdbcPassword" value="" />
 
         <property name="databaseSchemaUpdate" value="true" />
+        <property name="enforceHistoryTimeToLive" value="false" />
     </bean>
 </beans>
