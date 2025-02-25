@@ -4,27 +4,20 @@
 
 	<parent>
 		<groupId>com.mantledillusion.essentials</groupId>
-		<artifactId>vaadin-flow-essentials-parent</artifactId>
-		<version>1.2.0</version>
+		<artifactId>vaadin14-essentials-parent</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	
-	<artifactId>vaadin-flow-filter-bar</artifactId>
-	<version>2.1.0-SNAPSHOT</version>
+	<artifactId>vaadin14-heat-calendar</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	
-	<name>Vaadin Flow Filter Bar</name>
-	<description>The FilterBar component for Vaadin Flow allows simplified in-UI building of even the most complex filter constellations.</description>
+	<name>Vaadin 14 Heat Calendar</name>
+	<description>The HeatCalendar component for Vaadin 14 displays timestamped event occurrences in a clickable calendar.</description>
 	<url>http://www.mantledillusion.com</url>
 
 	<dependencies>
-		<!-- MantledIllusion Dependencies -->
-		<dependency>
-			<groupId>com.mantledillusion.data</groupId>
-			<artifactId>collo</artifactId>
-			<version>1.1.0</version>
-		</dependency>
-
 		<!-- Vaadin Dependencies -->
 		<dependency>
 			<groupId>com.vaadin</groupId>
@@ -36,23 +29,15 @@
 		</dependency>
 		<dependency>
 			<groupId>com.vaadin</groupId>
+			<artifactId>vaadin-grid-flow</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.vaadin</groupId>
 			<artifactId>vaadin-icons-flow</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.vaadin</groupId>
 			<artifactId>vaadin-button-flow</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.vaadin</groupId>
-			<artifactId>vaadin-combo-box-flow</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.vaadin</groupId>
-			<artifactId>vaadin-menu-bar-flow</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.vaadin</groupId>
-			<artifactId>flow-html-components</artifactId>
 		</dependency>
 	</dependencies>
 	

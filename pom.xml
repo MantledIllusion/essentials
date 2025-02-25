@@ -47,8 +47,8 @@
 		<module>string-essentials</module>
 		<module>reflection-essentials</module>
 		<module>spring5-essentials</module>
-		<module>vaadin-essentials</module>
-		<module>vaadin-flow-essentials</module>
+		<module>vaadin8-essentials</module>
+		<module>vaadin14-essentials</module>
 	</modules>
 
 	<distributionManagement>

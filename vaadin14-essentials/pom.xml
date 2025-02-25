@@ -5,16 +5,16 @@
 	<parent>
 		<groupId>com.mantledillusion.essentials</groupId>
 		<artifactId>essentials-parent</artifactId>
-		<version>1.8.0</version>
+		<version>1.11.0-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	
-	<artifactId>vaadin-flow-essentials-parent</artifactId>
-	<version>1.3.0-SNAPSHOT</version>
+	<artifactId>vaadin14-essentials-parent</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	
-	<name>Vaadin Flow Essentials</name>
-	<description>Vaadin Flow Essentials contain useful utilities and composite components for Vaadin Flow development.</description>
+	<name>Vaadin 14 Essentials</name>
+	<description>Vaadin 14 Essentials contain useful utilities and composite components for Vaadin 14 development.</description>
 	<url>http://www.mantledillusion.com</url>
 
 	<properties>
@@ -34,8 +34,8 @@
 	</dependencyManagement>
 
 	<modules>
-		<module>vaadin-flow-filter-bar</module>
-		<module>vaadin-flow-graph-pane</module>
-		<module>vaadin-flow-heat-calendar</module>
+		<module>vaadin14-filter-bar</module>
+		<module>vaadin14-graph-pane</module>
+		<module>vaadin14-heat-calendar</module>
 	</modules>
 </project>
