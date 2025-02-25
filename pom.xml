@@ -38,7 +38,7 @@
 	</scm>
 
 	<modules>
-		<module>camunda-essentials</module>
+		<module>camunda7-essentials</module>
 		<module>concurrency-essentials</module>
 		<module>expression-essentials</module>
 		<module>graph-essentials</module>
