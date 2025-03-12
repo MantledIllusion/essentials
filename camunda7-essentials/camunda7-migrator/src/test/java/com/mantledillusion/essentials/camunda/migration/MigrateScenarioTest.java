@@ -28,20 +28,15 @@ public class MigrateScenarioTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .usingDefaultMappings()
-                .defineScenarios()
-                    .defineScenario()
+                .defineScenario(rev1Scenario -> rev1Scenario
                         .whereVersionTag(Processes.Common.VersionTags.REV1)
-                        .toVersionTag(Processes.Common.VersionTags.REV2)
-                        .finalizeScenario()
-                    .defineScenario()
+                        .toVersionTag(Processes.Common.VersionTags.REV2))
+                .defineScenario(rev2Scenario -> rev2Scenario
                         .whereVersionTag(Processes.Common.VersionTags.REV2)
-                        .toVersionTag(Processes.Common.VersionTags.REV3)
-                        .finalizeScenario()
-                    .finalizeScenarios()
+                        .toVersionTag(Processes.Common.VersionTags.REV3))
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());

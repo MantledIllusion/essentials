@@ -17,31 +17,28 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.*;
+import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * Fluent builder style migrator for Camunda processes.
+ * Customizer builder style migrator for Camunda processes.
  * <p>
- * New builders are created using {@link ProcessMigration#in(ProcessEngine)}, which leads to beginning a root scenario.
- * A scenario is a differentiated set of situations in which process instances are migrated.
+ * New builders are created using {@link ProcessMigration#in(ProcessEngine)}, which leads to beginning a root-scenario.
+ * A scenario is a differentiated set of boundaries in which process instances are migrated.
  * <p>
- * A scenario always begins as follows:<br>
- * <code>defineScenario()</code> - (mandatory) - begin defining a new scenario
- * <p>
- * During a scenario, any of the following methods can be used to define its boundaries:<br>
+ * Within a scenario, any of the following methods can be used to define its boundaries:<br>
  * <code>where*()</code> - define filters for the source process instances to migrate<br>
  * <code>to*()</code> - define filters to determine the single target process definition to migrate to<br>
  * <code>using*()</code> - define activity mappings for the migration plan<br>
- * <code>when()</code> - define adjustments to process instances before/after commencing the migration<br>
+ * <code>when()</code> - define conditions for modifying process instances before/after commencing the migration<br>
  * <code>on*()</code> - (optional)
  * <p>
- * To complete a scenario's definition, either of the following methods might be chosen:<br>
- * <code>finalizeScenario()</code> - migrate processes as defined so far<br>
- * <code>defineScenarios()</code> - instead of migrating processes in this scenario, split it into sub scenarios
- * which will define sub-cases and then migrate processes themselves
+ * Calling the following method allows defining nested sub-scenarios, based on the boundaries defined for its parent:
+ * <code>defineScenario()</code>
  */
 public final class ProcessMigration {
 
@@ -189,7 +186,7 @@ public final class ProcessMigration {
         /**
          * Filter for process instances having a variable with the given name and value.
          *
-         * @see ProcessInstanceQuery#variableValueEquals(String, Object) 
+         * @see ProcessInstanceQuery#variableValueEquals(String, Object)
          * @param variableName The variable's name; might <b>not</b> be null
          * @param value The variable's value; might be null.
          * @return this
@@ -200,79 +197,30 @@ public final class ProcessMigration {
     /**
      * A builder for defining a scenario.
      *
-     * @param <Parent> The type of this {@link ScenarioBuilder}'s parent
+     * @param <This> The class type of the implementing builder
      */
-    public static class ScenarioBuilder<Parent> implements FilteringBuilder<ScenarioBuilder<Parent>> {
+    public abstract static class AbstractScenarioBuilder<This> implements FilteringBuilder<This> {
 
-        /**
-         * A builder for defining multiple sub-scenarios to a scenario.
-         *
-         * @param <Parent> The type of the parent of the {@link ScenarioBuilder} opening this {@link SubScenarioBuilder}
-         */
-        public static class SubScenarioBuilder<Parent> {
-
-            private final ScenarioBuilder<Parent> scenario;
-
-            private SubScenarioBuilder(ScenarioBuilder<Parent> scenario) {
-                this.scenario = scenario;
-            }
-
-            /**
-             * Begins defining a new sub-scenario.
-             *
-             * @return A new {@link ScenarioBuilder}, never null
-             */
-            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario() {
-                return defineScenario("unnamed");
-            }
-
-            /**
-             * Begins defining a new sub-scenario.
-             *
-             * @param title The title of the sub-scenario, might <b>not</b> be null.
-             * @return A new {@link ScenarioBuilder}, never null
-             */
-            public ScenarioBuilder<SubScenarioBuilder<Parent>> defineScenario(String title) {
-                if (title == null) {
-                    throw new IllegalArgumentException("Cannot create a scenario without a title");
-                }
-                ScenarioBuilder<SubScenarioBuilder<Parent>> scenarioBuilder = new ScenarioBuilder<>(this, title);
-                this.scenario.addMigrator((migration, report) -> report.add(scenarioBuilder.migrate(migration)));
-                return scenarioBuilder;
-            }
-
-            /**
-             * Completes defining sub-scenarios.
-             *
-             * @return The parent builder of the {@link ScenarioBuilder} to finish defining sub-scenario's for, never null
-             */
-            public Parent finalizeScenarios() {
-                return this.scenario.parent;
-            }
-        }
-
-        private final Parent parent;
         private final String title;
         private final List<Consumer<ProcessMigration>> adaptors = new ArrayList<>();
         private final List<BiConsumer<ProcessMigration, BranchReport>> migrators = new ArrayList<>();
 
-        private ScenarioBuilder(Parent parent, String title) {
-            this.parent = parent;
+        private AbstractScenarioBuilder(String title) {
             this.title = title;
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereActive() {
+        public This whereActive() {
             return addAdaptor(migration -> migration.addProcessPreFilter(ProcessInstanceQuery::active));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereSuspended() {
+        public This whereSuspended() {
             return addAdaptor(migration -> migration.addProcessPreFilter(ProcessInstanceQuery::suspended));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereDefinitionId(String definitionId) {
+        public This whereDefinitionId(String definitionId) {
             if (definitionId == null) {
                 throw new IllegalArgumentException("Unable to filter for a null definition id");
             }
@@ -280,18 +228,18 @@ public final class ProcessMigration {
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereDefinitionIdIn(String... definitionIds) {
+        public This whereDefinitionIdIn(String... definitionIds) {
             Set<String> definitionIdSet = new HashSet<>(Arrays.asList(definitionIds));
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definitionIdSet.contains(definition.getId())));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereDefinitionIdLike(String definitionIdPattern) {
+        public This whereDefinitionIdLike(String definitionIdPattern) {
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getId().matches(definitionIdPattern)));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereDefinitionKey(String definitionKey) {
+        public This whereDefinitionKey(String definitionKey) {
             if (definitionKey == null) {
                 throw new IllegalArgumentException("Unable to filter for a null definition key");
             }
@@ -299,44 +247,44 @@ public final class ProcessMigration {
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereDefinitionKeyIn(String... definitionKeys) {
+        public This whereDefinitionKeyIn(String... definitionKeys) {
             return addAdaptor(migration -> migration.addProcessPreFilter(query -> query.processDefinitionKeyIn(definitionKeys)));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereDefinitionKeyLike(String definitionKeyPattern) {
+        public This whereDefinitionKeyLike(String definitionKeyPattern) {
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getKey().matches(definitionKeyPattern)));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereVersionTag(String versionTag) {
+        public This whereVersionTag(String versionTag) {
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> Objects.equals(definition.getVersionTag(), versionTag)));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereVersionTagIn(String... versionTags) {
+        public This whereVersionTagIn(String... versionTags) {
             Set<String> versionTagSet = new HashSet<>(Arrays.asList(versionTags));
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> versionTagSet.contains(definition.getVersionTag())));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereVersionTagLike(String versionTagPattern) {
+        public This whereVersionTagLike(String versionTagPattern) {
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> StringUtil.defaultString(definition.getVersionTag()).matches(versionTagPattern)));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereVersion(int version) {
+        public This whereVersion(int version) {
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> definition.getVersion() == version));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereVersionIn(Integer... versions) {
+        public This whereVersionIn(Integer... versions) {
             Set<Integer> versionSet = new HashSet<>(Arrays.asList(versions));
             return addAdaptor(migration -> migration.addProcessPostFilter((definition, instance) -> versionSet.contains(definition.getVersion())));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereActivity(String activityId) {
+        public This whereActivity(String activityId) {
             if (activityId == null) {
                 throw new IllegalArgumentException("Unable to filter for a null activity id");
             }
@@ -344,12 +292,12 @@ public final class ProcessMigration {
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereIncident() {
+        public This whereIncident() {
             return addAdaptor(migration -> migration.addProcessPreFilter(ProcessInstanceQuery::withIncident));
         }
 
         @Override
-        public ScenarioBuilder<Parent> whereVariableEquals(String variableName, Object value) {
+        public This whereVariableEquals(String variableName, Object value) {
             if (variableName == null) {
                 throw new IllegalArgumentException("Unable to filter for a null variable name");
             }
@@ -363,7 +311,7 @@ public final class ProcessMigration {
          * @param definitionId The id to migrate to; might <b>not</b> be null.
          * @return this
          */
-        public ScenarioBuilder<Parent> toDefinitionId(String definitionId) {
+        public This toDefinitionId(String definitionId) {
             if (definitionId == null) {
                 throw new IllegalArgumentException("Unable to filter for a null definition id");
             }
@@ -377,7 +325,7 @@ public final class ProcessMigration {
          * @param definitionKey The key to migrate to; might <b>not</b> be null.
          * @return this
          */
-        public ScenarioBuilder<Parent> toDefinitionKey(String definitionKey) {
+        public This toDefinitionKey(String definitionKey) {
             if (definitionKey == null) {
                 throw new IllegalArgumentException("Unable to filter for a null definition key");
             }
@@ -391,7 +339,7 @@ public final class ProcessMigration {
          * @param versionTag The tag to migrate to; might be null.
          * @return this
          */
-        public ScenarioBuilder<Parent> toVersionTag(String versionTag) {
+        public This toVersionTag(String versionTag) {
             return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.versionTag(versionTag)));
         }
 
@@ -402,7 +350,7 @@ public final class ProcessMigration {
          * @param definitionVersion The key to migrate to.
          * @return this
          */
-        public ScenarioBuilder<Parent> toSpecificDefinitionVersion(int definitionVersion) {
+        public This toSpecificDefinitionVersion(int definitionVersion) {
             return addAdaptor(migration -> migration.addDefinitionFilter(query -> query.processDefinitionVersion(definitionVersion)));
         }
 
@@ -412,7 +360,7 @@ public final class ProcessMigration {
          * @see ProcessDefinitionQuery#latestVersion
          * @return this
          */
-        public ScenarioBuilder<Parent> toLatestDefinitionVersion() {
+        public This toLatestDefinitionVersion() {
             return addAdaptor(migration -> migration.addDefinitionFilter(ProcessDefinitionQuery::latestVersion));
         }
 
@@ -422,8 +370,8 @@ public final class ProcessMigration {
          * @see MigrationPlanBuilder#mapEqualActivities
          * @return this
          */
-        public ScenarioBuilder<Parent> usingDefaultMappings() {
-            return addAdaptor(migration -> migration.addMigrationPlanAdjustment(MigrationPlanBuilder::mapEqualActivities));
+        public This usingDefaultMappings() {
+            return addAdaptor(migration -> migration.addMigrationPlanModification(MigrationPlanBuilder::mapEqualActivities));
         }
 
         /**
@@ -434,7 +382,7 @@ public final class ProcessMigration {
          * @param targetActivityId The activityId in the target process definition; might <b>not</b> be null.
          * @return this
          */
-        public ScenarioBuilder<Parent> usingMapping(String sourceActivityId, String targetActivityId) {
+        public This usingMapping(String sourceActivityId, String targetActivityId) {
             return usingMapping(sourceActivityId, targetActivityId, false);
         }
 
@@ -447,13 +395,13 @@ public final class ProcessMigration {
          * @param updateEventTrigger Whether to update triggers for the given activities' events using {@link MigrationInstructionBuilder#updateEventTrigger()}
          * @return this
          */
-        public ScenarioBuilder<Parent> usingMapping(String sourceActivityId, String targetActivityId, boolean updateEventTrigger) {
+        public This usingMapping(String sourceActivityId, String targetActivityId, boolean updateEventTrigger) {
             if (sourceActivityId == null) {
                 throw new IllegalArgumentException("Cannot map from a null source activity");
             } else if (targetActivityId == null) {
                 throw new IllegalArgumentException("Cannot map to a null target activity");
             }
-            return addAdaptor(migration -> migration.addMigrationPlanAdjustment(plan -> {
+            return addAdaptor(migration -> migration.addMigrationPlanModification(plan -> {
                 MigrationInstructionBuilder instruction = plan.mapActivities(sourceActivityId, targetActivityId);
                 if (updateEventTrigger) {
                     instruction.updateEventTrigger();
@@ -462,82 +410,89 @@ public final class ProcessMigration {
         }
 
         /**
-         * Begins defining an adjustment to a process instance to migrate.
+         * Begins defining modifications to a process instance to migrate in case it matches a specifiable condition.
          *
-         * @return A new {@link AdjustmentBuilder}, never null
+         * @return this
          */
-        public AdjustmentBuilder<Parent> when() {
-            return when("unnamed");
+        public This when(Consumer<ConditionBuilder> conditionCustomizer) {
+            return when("unnamed", conditionCustomizer);
         }
 
         /**
-         * Begins defining an adjustment to a process instance to migrate.
+         * Begins defining modifications to a process instance to migrate in case it matches a specifiable condition.
          *
-         * @param title The adjustment's title; might <b>not</b> be null.
-         * @return A new {@link AdjustmentBuilder}, never null
+         * @param title The modification's title; might <b>not</b> be null.
+         * @return this
          */
-        public AdjustmentBuilder<Parent> when(String title) {
+        @SuppressWarnings("unchecked")
+        public This when(String title, Consumer<ConditionBuilder> conditionCustomizer) {
             if (title == null) {
-                throw new IllegalArgumentException("Cannot create an adjustment with a null title");
+                throw new IllegalArgumentException("Cannot create a condition with a null title");
             }
-            ProcessInstanceAdjustment adjustment = new ProcessInstanceAdjustment(title);
-            this.adaptors.add(migration -> migration.addInstanceAdjustment(adjustment));
-            return new AdjustmentBuilder<>(this, adjustment);
+            ProcessInstanceModification modification = new ProcessInstanceModification(title);
+            this.adaptors.add(migration -> migration.addProcessInstanceModification(modification));
+            conditionCustomizer.accept(new ConditionBuilder(modification));
+            return (This) this;
         }
 
         /**
          * Upon failing migration in this scenario, the rest of the scenario will be skipped.
          * <p>
-         * If using {@link #defineScenarios()} in this scenario and one sub scenario fails, all subsequent
-         * sub scenarios within this scenario will be skipped.
+         * If one of the sub scenarios defined in this scenario fails, all subsequent sub scenarios within this scenario will be skipped.
          * <p>
-         * If using {@link #finalizeScenario()} in this scenario and migrating one process instance fails, all
-         * subsequent process instances within this scenario will be skipped.
+         * If one of the process instance migrated by this scenario fails, all subsequent process instances within this scenario will be skipped.
          *
          * @param skip True if the rest of the scenario should be skipped upon failure, false otherwise.
-         * @return This
+         * @return this
          */
-        public ScenarioBuilder<Parent> onFailureSkip(boolean skip) {
+        public This onFailureSkip(boolean skip) {
             return addAdaptor(migration -> migration.setSkip(skip));
         }
 
         /**
-         * Upon failing migration in this scenario, all process instances handled in the rest of this scenario
-         * will be suspended.
+         * Upon failing migration in this scenario, all process instances handled in the rest of this scenario will be suspended.
          * <p>
-         * If using {@link #finalizeScenario()} in this scenario and migrating one process instance fails, all
-         * subsequent process instances within this scenario will be suspended.
+         * If one of the process instance migrated by this scenario fails, all subsequent process instances within this scenario will be suspended.
          *
-         * @param suspend The if the rest of the scenario's process instances should be suspended upon failure, false otherwise.
-         * @return This
+         * @param suspend True if the rest of the scenario's process instances should be suspended upon failure, false otherwise.
+         * @return this
          */
-        public ScenarioBuilder<Parent> onFailureSuspend(boolean suspend) {
+        public This onFailureSuspend(boolean suspend) {
             return addAdaptor(migration -> migration.setSuspend(suspend));
         }
 
         /**
-         * Declare this scenario as not migrating process instances itself, but rather be a parent for more specific
-         * sub-scenarios.
+         * Begins defining a new sub-scenario.
          *
-         * @return A new {@link SubScenarioBuilder}, never null
+         * @param scenarioCustomizer A customizer that for the sub-scenario using the given builder; might <b>not</b> be null.
+         * @return A new {@link AbstractScenarioBuilder}, never null
          */
-        public SubScenarioBuilder<Parent> defineScenarios() {
-            return new SubScenarioBuilder<>(this);
+        public This defineScenario(Consumer<SubScenarioBuilder> scenarioCustomizer) {
+            return defineScenario("unnamed", scenarioCustomizer);
         }
 
         /**
-         * Declare this scenario as being fully defined for migrating process instances.
+         * Begins defining a new sub-scenario.
          *
-         * @return This {@link ScenarioBuilder}'s parent, never null
+         * @param title The title of the sub-scenario, might <b>not</b> be null.
+         * @param scenarioCustomizer A customizer that for the sub-scenario using the given builder; might <b>not</b> be null.
+         * @return this
          */
-        public Parent finalizeScenario() {
-            addMigrator(ProcessMigration::migrate);
-            return this.parent;
+        @SuppressWarnings("unchecked")
+        public This defineScenario(String title, Consumer<SubScenarioBuilder> scenarioCustomizer) {
+            if (title == null) {
+                throw new IllegalArgumentException("Cannot create a scenario without a title");
+            }
+            SubScenarioBuilder scenarioBuilder = new SubScenarioBuilder(title);
+            scenarioCustomizer.accept(scenarioBuilder);
+            addMigrator((migration, report) -> report.add(((AbstractScenarioBuilder<This>) scenarioBuilder).migrate(migration)));
+            return (This) this;
         }
 
-        private <A extends Consumer<ProcessMigration>> ScenarioBuilder<Parent> addAdaptor(A adaptor) {
+        @SuppressWarnings("unchecked")
+        private <A extends Consumer<ProcessMigration>> This addAdaptor(A adaptor) {
             this.adaptors.add(adaptor);
-            return this;
+            return (This) this;
         }
 
         private <M extends BiConsumer<ProcessMigration, BranchReport>> void addMigrator(M migrator) {
@@ -549,13 +504,21 @@ public final class ProcessMigration {
             ProcessMigration scenarioMigration = processMigration.copy();
             this.adaptors.forEach(adaptor -> adaptor.accept(scenarioMigration));
 
+            // CREATE REPORT
+            BranchReport scenarioReport = new BranchReport(Optional.ofNullable(this.title)
+                    .map(title -> "Scenario: " + title)
+                    .orElse(null));
+
             // MIGRATE SCENARIO
-            BranchReport scenarioReport = new BranchReport("Scenario: " + this.title);
-            for (BiConsumer<ProcessMigration, BranchReport> migrator: this.migrators) {
-                migrator.accept(scenarioMigration, scenarioReport);
-                if (scenarioMigration.skip && !scenarioReport.isSuccess()) {
-                    scenarioReport.add(new LeafReport("Skipping configured; scenario will not continue any further", true));
-                    break;
+            if (this.migrators.isEmpty()) {
+                scenarioMigration.migrate(scenarioReport);
+            } else {
+                for (BiConsumer<ProcessMigration, BranchReport> migrator: this.migrators) {
+                    migrator.accept(scenarioMigration, scenarioReport);
+                    if (scenarioMigration.skip && !scenarioReport.isSuccess()) {
+                        scenarioReport.add(new LeafReport("Skipping configured; scenario will not continue any further", true));
+                        break;
+                    }
                 }
             }
 
@@ -563,14 +526,14 @@ public final class ProcessMigration {
         }
     }
 
-    private static final class ProcessInstanceAdjustment {
+    private static final class ProcessInstanceModification {
 
         private final String title;
         private final List<ProcessPredicate> predicates = new ArrayList<>();
         private final List<BiConsumer<RuntimeService, String>> before = new ArrayList<>();
         private final List<BiConsumer<RuntimeService, String>> after = new ArrayList<>();
 
-        private ProcessInstanceAdjustment(String title) {
+        private ProcessInstanceModification(String title) {
             this.title = title;
         }
 
@@ -596,7 +559,7 @@ public final class ProcessMigration {
             return this.before;
         }
 
-        private void applyAfter(BiConsumer<RuntimeService, String> modification) {
+        private void addApplyAfter(BiConsumer<RuntimeService, String> modification) {
             this.after.add(modification);
         }
 
@@ -611,163 +574,143 @@ public final class ProcessMigration {
     }
 
     /**
-     * A builder for defining filters determining whether to execute adjustments to a process instance before/after migrating.
-     *
-     * @param <Parent> The class type of the {@link AdjustmentBuilder}'s parent builder.
+     * A builder for defining filters determining whether to modify to a process instance before/after migrating.
      */
-    public static class AdjustmentBuilder<Parent> implements FilteringBuilder<AdjustmentBuilder<Parent>> {
+    public static class ConditionBuilder implements FilteringBuilder<ConditionBuilder> {
 
-        private final ScenarioBuilder<Parent> parent;
-        private final ProcessInstanceAdjustment adjustment;
+        private final ProcessInstanceModification modification;
 
-        private AdjustmentBuilder(ScenarioBuilder<Parent> parent, ProcessInstanceAdjustment adjustment) {
-            this.parent = parent;
-            this.adjustment = adjustment;
+        private ConditionBuilder(ProcessInstanceModification modification) {
+            this.modification = modification;
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereActive() {
+        public ConditionBuilder whereActive() {
             return addPredicate((service, definition, instance) -> !instance.isSuspended());
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereSuspended() {
+        public ConditionBuilder whereSuspended() {
             return addPredicate((service, definition, instance) -> instance.isSuspended());
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereDefinitionId(String definitionId) {
+        public ConditionBuilder whereDefinitionId(String definitionId) {
             return addPredicate((service, definition, instance) -> definition.getId().equals(definitionId));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereDefinitionIdIn(String... definitionIds) {
+        public ConditionBuilder whereDefinitionIdIn(String... definitionIds) {
             Set<String> definitionIdSet = new HashSet<>(Arrays.asList(definitionIds));
             return addPredicate((service, definition, instance) -> definitionIdSet.contains(definition.getId()));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereDefinitionIdLike(String definitionIdPattern) {
+        public ConditionBuilder whereDefinitionIdLike(String definitionIdPattern) {
             return addPredicate((service, definition, instance) -> definition.getId().matches(definitionIdPattern));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereDefinitionKey(String definitionKey) {
+        public ConditionBuilder whereDefinitionKey(String definitionKey) {
             return addPredicate((service, definition, instance) -> definition.getKey().equals(definitionKey));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereDefinitionKeyIn(String... definitionKeys) {
+        public ConditionBuilder whereDefinitionKeyIn(String... definitionKeys) {
             Set<String> definitionKeySet = new HashSet<>(Arrays.asList(definitionKeys));
             return addPredicate((service, definition, instance) -> definitionKeySet.contains(definition.getKey()));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereDefinitionKeyLike(String definitionKeyPattern) {
+        public ConditionBuilder whereDefinitionKeyLike(String definitionKeyPattern) {
             return addPredicate((service, definition, instance) -> definition.getKey().matches(definitionKeyPattern));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereVersionTag(String versionTag) {
+        public ConditionBuilder whereVersionTag(String versionTag) {
             return addPredicate((service, definition, instance) -> definition.getVersionTag().equals(versionTag));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereVersionTagIn(String... versionTags) {
+        public ConditionBuilder whereVersionTagIn(String... versionTags) {
             Set<String> versionTagSet = new HashSet<>(Arrays.asList(versionTags));
             return addPredicate((service, definition, instance) -> versionTagSet.contains(definition.getVersionTag()));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereVersionTagLike(String versionTagPattern) {
+        public ConditionBuilder whereVersionTagLike(String versionTagPattern) {
             return addPredicate((service, definition, instance) -> StringUtil.defaultString(definition.getVersionTag()).matches(versionTagPattern));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereVersion(int version) {
+        public ConditionBuilder whereVersion(int version) {
             return addPredicate((service, definition, instance) -> definition.getVersion() == version);
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereVersionIn(Integer... versions) {
+        public ConditionBuilder whereVersionIn(Integer... versions) {
             Set<Integer> versionSet = new HashSet<>(Arrays.asList(versions));
             return addPredicate((service, definition, instance) -> versionSet.contains(definition.getVersion()));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereActivity(String activityId) {
+        public ConditionBuilder whereActivity(String activityId) {
             return addPredicate((service, definition, instance) -> service.getActiveActivityIds(instance.getId()).contains(activityId));
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereIncident() {
+        public ConditionBuilder whereIncident() {
             return addPredicate((service, definition, instance) -> service.getActivityInstance(instance.getId()).getIncidents().length > 0);
         }
 
         @Override
-        public AdjustmentBuilder<Parent> whereVariableEquals(String variableName, Object value) {
+        public ConditionBuilder whereVariableEquals(String variableName, Object value) {
             return addPredicate((service, definition, instance) -> Objects.equals(service.getVariable(instance.getId(), variableName), value));
         }
 
-        private AdjustmentBuilder<Parent> addPredicate(ProcessPredicate predicate) {
-            this.adjustment.addPredicate(predicate);
+        private ConditionBuilder addPredicate(ProcessPredicate predicate) {
+            this.modification.addPredicate(predicate);
             return this;
         }
 
         /**
-         * Begin defining adjustments to execute before migrating a process instance.
+         * Begin defining modifications to execute before migrating a process instance.
          *
-         * @return A new {@link BeforeMigrationAdjustmentBuilder}, never null
+         * @param modificationCustomizer A customizer that for the modification using the given builder; might <b>not</b> be null.
+         * @return this
          */
-        public BeforeMigrationAdjustmentBuilder<Parent> beforeMigrate() {
-            return new BeforeMigrationAdjustmentBuilder<>(this.parent, this.adjustment);
+        public ConditionBuilder beforeMigrate(Consumer<ModificationBuilder> modificationCustomizer) {
+            modificationCustomizer.accept(new ModificationBuilder(this.modification::addApplyBefore));
+            return this;
         }
 
         /**
-         * Begin defining adjustments to execute after migrating a process instance.
+         * Begin defining modifications to execute after migrating a process instance.
          *
-         * @return A new {@link AfterMigrationAdjustmentBuilder}, never null
+         * @param modificationCustomizer A customizer that for the modification using the given builder; might <b>not</b> be null.
+         * @return this
          */
-        public AfterMigrationAdjustmentBuilder<Parent> afterMigrate() {
-            return new AfterMigrationAdjustmentBuilder<>(this.parent, this.adjustment);
+        public ConditionBuilder afterMigrate(Consumer<ModificationBuilder> modificationCustomizer) {
+            modificationCustomizer.accept(new ModificationBuilder(this.modification::addApplyAfter));
+            return this;
         }
     }
 
     /**
-     * A builder for defining an adjustment's several modifications to a process instance.
-     *
-     * @param <Parent> The class type of this {@link AbstractAdjustmentBuilder}'s parent builder.
-     * @param <This> The class type of this {@link AbstractAdjustmentBuilder}'s implementation.
+     * A builder for defining modifications to a process instance.
      */
-    public static abstract class AbstractAdjustmentBuilder<Parent, This> {
+    public static class ModificationBuilder {
 
         /**
          * A builder to define an activity modification.
          */
-        public final class ActivityModificationBuilder {
+        public static final class ActivityModificationBuilder {
 
-            private final class ActivityModification implements BiConsumer<RuntimeService, String> {
+            private final List<Consumer<ProcessInstanceModificationBuilder>> modifications;
 
-                private final List<Consumer<ProcessInstanceModificationBuilder>> modifications;
-
-                private ActivityModification(List<Consumer<ProcessInstanceModificationBuilder>> modifications) {
-                    this.modifications = modifications;
-                }
-
-                @Override
-                public void accept(RuntimeService runtimeService, String processInstanceId) {
-                    ProcessInstanceModificationBuilder builder = runtimeService
-                            .createProcessInstanceModification(processInstanceId);
-
-                    this.modifications.forEach(modification -> modification.accept(builder));
-
-                    builder.execute();
-                }
+            private ActivityModificationBuilder(List<Consumer<ProcessInstanceModificationBuilder>> modifications) {
+                this.modifications = modifications;
             }
-
-            private final List<Consumer<ProcessInstanceModificationBuilder>> modifications = new ArrayList<>();
-
-            private ActivityModificationBuilder() {}
 
             /**
              * Cancel a specific activity instance of a given id.
@@ -858,57 +801,17 @@ public final class ProcessMigration {
                 this.modifications.add(builder -> builder.startTransition(transitionId));
                 return this;
             }
-
-            /**
-             * Declare this activity modification as fully defined.
-             *
-             * @return This {@link ActivityModificationBuilder}'s parent {@link AbstractAdjustmentBuilder}.
-             */
-            @SuppressWarnings("unchecked")
-            public This then() {
-                addModification(new ActivityModification(this.modifications));
-                return (This) AbstractAdjustmentBuilder.this;
-            }
         }
 
         /**
          * A builder to define a message correlation.
          */
-        public final class MessageModificationBuilder {
+        public static final class MessageModificationBuilder {
 
-            private final class MessageModification implements BiConsumer<RuntimeService, String> {
+            private final List<Consumer<MessageCorrelationBuilder>> modifications;
 
-                private final String messageName;
-                private final boolean all;
-                private final List<Consumer<org.camunda.bpm.engine.runtime.MessageCorrelationBuilder>> modifications;
-
-                private MessageModification(String messageName, boolean all, List<Consumer<org.camunda.bpm.engine.runtime.MessageCorrelationBuilder>> modifications) {
-                    this.messageName = messageName;
-                    this.all = all;
-                    this.modifications = modifications;
-                }
-
-                @Override
-                public void accept(RuntimeService runtimeService, String processInstanceId) {
-                    org.camunda.bpm.engine.runtime.MessageCorrelationBuilder builder = runtimeService
-                            .createMessageCorrelation(this.messageName)
-                            .processInstanceId(processInstanceId);
-
-                    this.modifications.forEach(modification -> modification.accept(builder));
-
-                    if (this.all) {
-                        builder.correlateAll();
-                    } else {
-                        builder.correlate();
-                    }
-                }
-            }
-
-            private final String messageName;
-            private final List<Consumer<MessageCorrelationBuilder>> modifications = new ArrayList<>();
-
-            private MessageModificationBuilder(String messageName) {
-                this.messageName = messageName;
+            private MessageModificationBuilder(List<Consumer<MessageCorrelationBuilder>> modifications) {
+                this.modifications = modifications;
             }
 
             /**
@@ -939,47 +842,74 @@ public final class ProcessMigration {
                 this.modifications.add(builder -> builder.setVariableLocal(variableName, value));
                 return this;
             }
-
-            /**
-             * Declares to correlate the message to one receiver.
-             *
-             * @see MessageCorrelationBuilder#correlate()
-             * @return The {@link MessageModificationBuilder}'s parent {@link AbstractAdjustmentBuilder}, never null
-             */
-            @SuppressWarnings("unchecked")
-            public This toOne() {
-                addModification(new MessageModification(messageName, false, this.modifications));
-                return (This) AbstractAdjustmentBuilder.this;
-            }
-
-            /**
-             * Declares to correlate the message to all receivers.
-             *
-             * @see MessageCorrelationBuilder#correlateAll()
-             * @return The {@link MessageModificationBuilder}'s parent {@link AbstractAdjustmentBuilder}, never null
-             */
-            @SuppressWarnings("unchecked")
-            public This toAll() {
-                addModification(new MessageModification(messageName, true, this.modifications));
-                return (This) AbstractAdjustmentBuilder.this;
-            }
         }
 
-        private final ScenarioBuilder<Parent> parent;
         private final Consumer<BiConsumer<RuntimeService, String>> modifications;
 
-        private AbstractAdjustmentBuilder(ScenarioBuilder<Parent> parent, Consumer<BiConsumer<RuntimeService, String>> modifications) {
-            this.parent = parent;
+        private ModificationBuilder(Consumer<BiConsumer<RuntimeService, String>> modifications) {
             this.modifications = modifications;
         }
 
         /**
          * Begins defining activity modifications to a process instance.
          *
-         * @return A new {@link ActivityModificationBuilder}, never null
+         * @param activityModificationCustomizer A customizer that for the activity modification using the given builder; might <b>not</b> be null.
+         * @return this
          */
-        public ActivityModificationBuilder modify() {
-            return new ActivityModificationBuilder();
+        public ModificationBuilder modify(Consumer<ActivityModificationBuilder> activityModificationCustomizer) {
+            List<Consumer<ProcessInstanceModificationBuilder>> modifications = new ArrayList<>();
+            activityModificationCustomizer.accept(new ActivityModificationBuilder(modifications));
+            addModification((runtimeService, processInstanceId) -> {
+                ProcessInstanceModificationBuilder builder = runtimeService
+                        .createProcessInstanceModification(processInstanceId);
+
+                modifications.forEach(modification -> modification.accept(builder));
+
+                builder.execute();
+            });
+            return this;
+        }
+
+        /**
+         * Begins defining a message to correlate to one process instance.
+         *
+         * @param messageName The message to correlate; might <b>not</b> be null.
+         * @return this
+         */
+        public ModificationBuilder correlateOnce(String messageName) {
+            return correlateOnce(messageName, message -> {});
+        }
+
+        /**
+         * Begins defining a message to correlate to one process instance.
+         *
+         * @param messageName The message to correlate; might <b>not</b> be null.
+         * @param messageModificationCustomizer A customizer that for the message modification using the given builder; might <b>not</b> be null.
+         * @return this
+         */
+        public ModificationBuilder correlateOnce(String messageName, Consumer<MessageModificationBuilder> messageModificationCustomizer) {
+            return correlate(messageName, false, messageModificationCustomizer);
+        }
+
+        /**
+         * Begins defining a message to correlate to all process instances.
+         *
+         * @param messageName The message to correlate; might <b>not</b> be null.
+         * @return this
+         */
+        public ModificationBuilder correlateAll(String messageName) {
+            return correlateAll(messageName, message -> {});
+        }
+
+        /**
+         * Begins defining a message to correlate to all process instances.
+         *
+         * @param messageName The message to correlate; might <b>not</b> be null.
+         * @param messageModificationCustomizer A customizer that for the message modification using the given builder; might <b>not</b> be null.
+         * @return this
+         */
+        public ModificationBuilder correlateAll(String messageName, Consumer<MessageModificationBuilder> messageModificationCustomizer) {
+            return correlate(messageName, true, messageModificationCustomizer);
         }
 
         /**
@@ -988,11 +918,26 @@ public final class ProcessMigration {
          * @param messageName The message to correlate; might <b>not</b> be null.
          * @return A new {@link MessageModificationBuilder}, never null
          */
-        public MessageModificationBuilder correlate(String messageName) {
+        public ModificationBuilder correlate(String messageName, boolean all, Consumer<MessageModificationBuilder> messageModificationCustomizer) {
             if (messageName == null) {
                 throw new IllegalArgumentException("Cannot correlate a message with a null name");
             }
-            return new MessageModificationBuilder(messageName);
+            List<Consumer<MessageCorrelationBuilder>> modifications = new ArrayList<>();
+            messageModificationCustomizer.accept(new MessageModificationBuilder(modifications));
+            addModification((runtimeService, processInstanceId) -> {
+                MessageCorrelationBuilder builder = runtimeService
+                        .createMessageCorrelation(messageName)
+                        .processInstanceId(processInstanceId);
+
+                modifications.forEach(modification -> modification.accept(builder));
+
+                if (all) {
+                    builder.correlateAll();
+                } else {
+                    builder.correlate();
+                }
+            });
+            return this;
         }
 
         /**
@@ -1002,7 +947,7 @@ public final class ProcessMigration {
          * @param value The variable's value to set; might be null.
          * @return this
          */
-        public This setVariable(String variableName, Object value) {
+        public ModificationBuilder setVariable(String variableName, Object value) {
             if (variableName == null) {
                 throw new IllegalArgumentException("Cannot set a variable with a null name");
             }
@@ -1015,116 +960,29 @@ public final class ProcessMigration {
          * @param variableName The variable to remove; might <b>not</b> be null.
          * @return this
          */
-        public This removeVariable(String variableName) {
+        public ModificationBuilder removeVariable(String variableName) {
             if (variableName == null) {
                 throw new IllegalArgumentException("Cannot remove a variable with a null name");
             }
             return addModification(((runtimeService, instanceId) -> runtimeService.removeVariable(instanceId, variableName)));
         }
 
-        private This addModification(BiConsumer<RuntimeService, String> modification) {
+        private ModificationBuilder addModification(BiConsumer<RuntimeService, String> modification) {
             this.modifications.accept(modification);
-            return (This) this;
-        }
-
-        /**
-         * Declares the modifications to the process instance complete.
-         *
-         * @return The {@link AbstractAdjustmentBuilder}'s parent {@link ScenarioBuilder}, never null
-         */
-        public ScenarioBuilder<Parent> then() {
-            return this.parent;
+            return this;
         }
     }
 
     /**
-     * A builder to define modifications to execute before migrating a process instance.
-     *
-     * @param <Parent> The class type of this {@link BeforeMigrationAdjustmentBuilder}'s parent builder.
+     * A builder to define a root scenario for a process engine with.
      */
-    public static class BeforeMigrationAdjustmentBuilder<Parent> extends AbstractAdjustmentBuilder<Parent, BeforeMigrationAdjustmentBuilder<Parent>> {
-
-        private final ProcessInstanceAdjustment adjustment;
-
-        private BeforeMigrationAdjustmentBuilder(ScenarioBuilder<Parent> parent, ProcessInstanceAdjustment adjustment) {
-            super(parent, adjustment::addApplyBefore);
-            this.adjustment = adjustment;
-        }
-
-        /**
-         * Declares the definition of modifications to execute before a process instance's migration complete and
-         * starts declaring modifications to execute after.
-         *
-         * @return A new {@link AfterMigrationAdjustmentBuilder}, never null
-         */
-        public AfterMigrationAdjustmentBuilder<Parent> afterMigrate() {
-            return new AfterMigrationAdjustmentBuilder<>(this.then(), this.adjustment);
-        }
-    }
-
-    /**
-     * A builder to define modifications to execute after migrating a process instance.
-     *
-     * @param <Parent> The class type of this {@link AfterMigrationAdjustmentBuilder}'s parent builder.
-     */
-    public static class AfterMigrationAdjustmentBuilder<Parent> extends AbstractAdjustmentBuilder<Parent, AfterMigrationAdjustmentBuilder<Parent>> {
-
-        private AfterMigrationAdjustmentBuilder(ScenarioBuilder<Parent> parent, ProcessInstanceAdjustment adjustment) {
-            super(parent, adjustment::applyAfter);
-        }
-    }
-
-    /**
-     * A builder to start defining scenarios for a process engine with.
-     */
-    public static class EngineBuilder {
+    public static class RootScenarioBuilder extends AbstractScenarioBuilder<RootScenarioBuilder> {
 
         private final ProcessEngine processEngine;
-
-        private EngineBuilder(ProcessEngine processEngine) {
-            this.processEngine = processEngine;
-        }
-
-        /**
-         * Define the root scenario to all migrations.
-         *
-         * @return A new {@link ScenarioBuilder}, never null
-         */
-        public ScenarioBuilder<ExecutionBuilder> defineScenario() {
-            return defineScenario("root");
-        }
-
-        /**
-         * Define the root scenario to all migrations.
-         *
-         * @param title The root scenario's title; might <b>not</b> be null.
-         * @return A new {@link ScenarioBuilder}, never null
-         */
-        public ScenarioBuilder<ExecutionBuilder> defineScenario(String title) {
-            if (title == null) {
-                throw new IllegalArgumentException("Cannot create a scenario without a title");
-            }
-
-            ExecutionBuilder executionBuilder = new ExecutionBuilder(this.processEngine);
-            ScenarioBuilder<ExecutionBuilder> scenarioBuilder = new ScenarioBuilder<>(executionBuilder, title);
-
-            executionBuilder.rootScenario = scenarioBuilder;
-
-            return scenarioBuilder;
-        }
-    }
-
-    /**
-     * A builder to execute defined migration scenarios with.
-     */
-    public static class ExecutionBuilder {
-
-        private final ProcessEngine processEngine;
-        private ScenarioBuilder<ExecutionBuilder> rootScenario;
-
         private boolean log = true;
 
-        private ExecutionBuilder(ProcessEngine processEngine) {
+        private RootScenarioBuilder(ProcessEngine processEngine, String title) {
+            super(title);
             this.processEngine = processEngine;
         }
 
@@ -1134,7 +992,7 @@ public final class ProcessMigration {
          * @param log True if the migration's {@link Report} should be logged, false otherwise
          * @return this
          */
-        public ExecutionBuilder log(boolean log) {
+        public RootScenarioBuilder log(boolean log) {
             this.log = log;
             return this;
         }
@@ -1145,7 +1003,7 @@ public final class ProcessMigration {
          * @return A new {@link Report} containing the information about the migration, never null
          */
         public Report migrate() {
-            Report rootReport = this.rootScenario.migrate(new ProcessMigration(this.processEngine,
+            Report rootReport = ((AbstractScenarioBuilder<RootScenarioBuilder>) this).migrate(new ProcessMigration(this.processEngine,
                     // DEFAULT SKIP
                     new AtomicInteger(0), false,
                     // DEFAULT SUSPENSION
@@ -1156,9 +1014,9 @@ public final class ProcessMigration {
                     new ArrayList<>(),
                     // DEFAULT INSTANCE POST FILTERS
                     new ArrayList<>(),
-                    // DEFAULT INSTANCE ADJUSTMENTS
+                    // DEFAULT PROCESS INSTANCE MODIFICATIONS
                     new ArrayList<>(),
-                    // DEFAULT MIGRATION PLAN ADJUSTMENTS
+                    // DEFAULT MIGRATION PLAN MODIFICATIONS
                     new ArrayList<>()
             ));
 
@@ -1171,6 +1029,16 @@ public final class ProcessMigration {
 
         private void log(Report report, Consumer<String> logger) {
             logger.accept("Camunda process migration completed migrating " + report.count() + " process(es):\n"+report.prettyPrint(true));
+        }
+    }
+
+    /**
+     * A builder to define a sub scenario for a process engine with.
+     */
+    public static class SubScenarioBuilder extends AbstractScenarioBuilder<SubScenarioBuilder> {
+
+        private SubScenarioBuilder(String title) {
+            super(title);
         }
     }
 
@@ -1188,7 +1056,7 @@ public final class ProcessMigration {
         /**
          * Returns the {@link Report}'s title.
          *
-         * @return The title, never null.
+         * @return The title, might be null
          */
         public String getTitle() {
             return this.title;
@@ -1267,10 +1135,11 @@ public final class ProcessMigration {
 
         @Override
         protected String prettyPrint(int layer, String prefix, String infix, String postFix) {
+            var title = Optional.ofNullable(getTitle());
             String[] report = Stream
                     .concat(
-                            Stream.of(getPadding(layer) + getTitle()),
-                            this.children.stream().map(child -> child.prettyPrint(layer+1, prefix, infix, postFix))
+                            title.stream().map(t -> getPadding(layer) + t),
+                            this.children.stream().map(child -> child.prettyPrint(layer+(title.isPresent() ? 1 : 0), prefix, infix, postFix))
                     )
                     .toArray(String[]::new);
 
@@ -1320,19 +1189,19 @@ public final class ProcessMigration {
     private final List<Consumer<ProcessDefinitionQuery>> definitionFilters;
     private final List<Consumer<ProcessInstanceQuery>> instancePreFilters;
     private final List<BiPredicate<ProcessDefinition, ProcessInstance>> instancePostFilters;
-    private final List<ProcessInstanceAdjustment> instanceAdjustments;
-    private final List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments;
+    private final List<ProcessInstanceModification> processInstanceModifications;
+    private final List<Consumer<MigrationPlanBuilder>> migrationPlanModifications;
 
     private boolean skip;
     private boolean suspend;
 
     private ProcessMigration(ProcessEngine processEngine, AtomicInteger referenceGenerator,
-                             boolean skip, boolean suspend,
-                             List<Consumer<ProcessDefinitionQuery>> definitionFilters,
-                             List<Consumer<ProcessInstanceQuery>> instancePreFilters,
-                             List<BiPredicate<ProcessDefinition, ProcessInstance>> instancePostFilters,
-                             List<ProcessInstanceAdjustment> instanceAdjustments,
-                             List<Consumer<MigrationPlanBuilder>> migrationPlanAdjustments) {
+                              boolean skip, boolean suspend,
+                              List<Consumer<ProcessDefinitionQuery>> definitionFilters,
+                              List<Consumer<ProcessInstanceQuery>> instancePreFilters,
+                              List<BiPredicate<ProcessDefinition, ProcessInstance>> instancePostFilters,
+                              List<ProcessInstanceModification> processInstanceModifications,
+                              List<Consumer<MigrationPlanBuilder>> migrationPlanModifications) {
         this.processEngine = processEngine;
         this.referenceGenerator = referenceGenerator;
 
@@ -1342,8 +1211,8 @@ public final class ProcessMigration {
         this.definitionFilters = definitionFilters;
         this.instancePreFilters = instancePreFilters;
         this.instancePostFilters = instancePostFilters;
-        this.instanceAdjustments = instanceAdjustments;
-        this.migrationPlanAdjustments = migrationPlanAdjustments;
+        this.processInstanceModifications = processInstanceModifications;
+        this.migrationPlanModifications = migrationPlanModifications;
     }
 
     private void setSkip(boolean skip) {
@@ -1366,12 +1235,12 @@ public final class ProcessMigration {
         this.instancePostFilters.add(postFilter);
     }
 
-    private void addInstanceAdjustment(ProcessInstanceAdjustment adjustment) {
-        this.instanceAdjustments.add(adjustment);
+    private void addProcessInstanceModification(ProcessInstanceModification modification) {
+        this.processInstanceModifications.add(modification);
     }
 
-    private void addMigrationPlanAdjustment(Consumer<MigrationPlanBuilder> adjustment) {
-        this.migrationPlanAdjustments.add(adjustment);
+    private void addMigrationPlanModification(Consumer<MigrationPlanBuilder> modification) {
+        this.migrationPlanModifications.add(modification);
     }
 
     private ProcessMigration copy() {
@@ -1380,8 +1249,8 @@ public final class ProcessMigration {
                 new ArrayList<>(this.definitionFilters),
                 new ArrayList<>(this.instancePreFilters),
                 new ArrayList<>(this.instancePostFilters),
-                new ArrayList<>(this.instanceAdjustments),
-                new ArrayList<>(this.migrationPlanAdjustments));
+                new ArrayList<>(this.processInstanceModifications),
+                new ArrayList<>(this.migrationPlanModifications));
     }
 
     private void migrate(BranchReport scenarioReport) {
@@ -1409,7 +1278,7 @@ public final class ProcessMigration {
 
                         return this.instancePostFilters.stream().allMatch(filter -> filter.test(sourceDefinition, instance));
                     })
-                    .collect(Collectors.toList());
+                    .toList();
 
             // MIGRATE INSTANCES
             if (instances.isEmpty()) {
@@ -1425,18 +1294,19 @@ public final class ProcessMigration {
                     MigrationPlanBuilder builder = this.processEngine.getRuntimeService()
                             .createMigrationPlan(instance.getProcessDefinitionId(), targetDefinition.getId());
 
-                    // ADJUST MIGRATION PLAN
-                    this.migrationPlanAdjustments.forEach(adjustment -> adjustment.accept(builder));
+                    // MODIFY MIGRATION PLAN
+                    this.migrationPlanModifications.forEach(modification -> modification.accept(builder));
 
                     // BUILD MIGRATION PLAN
                     MigrationPlan plan = builder.build();
 
-                    List<ProcessInstanceAdjustment> adjustments = this.instanceAdjustments.stream()
-                            .filter(adjustment -> adjustment.applies(instanceReport, this.processEngine.getRuntimeService(), targetDefinition, instance))
+                    // GATHER APPLYING INSTANCE MODIFICATIONS
+                    List<ProcessInstanceModification> modifications = this.processInstanceModifications.stream()
+                            .filter(modification -> modification.applies(instanceReport, this.processEngine.getRuntimeService(), targetDefinition, instance))
                             .collect(Collectors.toList());
 
-                    // ADJUST INSTANCE BEFORE MIGRATION
-                    boolean success = applyAdjustments(instance, adjustments, true, instanceReport);
+                    // MODIFY INSTANCE BEFORE MIGRATION
+                    boolean success = applyModifications(instance, modifications, true, instanceReport);
                     if (!success) {
                         if (this.skip) {
                             scenarioReport.add(new LeafReport("Skipping configured; no further process instances will be migrated", true));
@@ -1473,8 +1343,8 @@ public final class ProcessMigration {
                         }
                     }
 
-                    // ADJUST INSTANCE AFTER MIGRATION
-                    success = applyAdjustments(instance, adjustments, false, instanceReport);
+                    // MODIFY INSTANCE AFTER MIGRATION
+                    success = applyModifications(instance, modifications, false, instanceReport);
                     if (!success && this.skip) {
                         break;
                     }
@@ -1483,12 +1353,14 @@ public final class ProcessMigration {
         }
     }
 
-    private boolean applyAdjustments(ProcessInstance instance, List<ProcessInstanceAdjustment> adjustments,
-                                     boolean before, BranchReport instanceReport) {
-        for (ProcessInstanceAdjustment adjustment: adjustments) {
-            for (BiConsumer<RuntimeService, String> modification: (before ? adjustment.getApplyBefore() : adjustment.getApplyAfter())) {
+    private boolean applyModifications(ProcessInstance instance, List<ProcessInstanceModification> modifications,
+                                       boolean before, BranchReport instanceReport) {
+        for (ProcessInstanceModification instanceModification: modifications) {
+            for (BiConsumer<RuntimeService, String> phaseModification: (before
+                    ? instanceModification.getApplyBefore()
+                    : instanceModification.getApplyAfter())) {
                 try {
-                    modification.accept(this.processEngine.getRuntimeService(), instance.getId());
+                    phaseModification.accept(this.processEngine.getRuntimeService(), instance.getId());
                 } catch (Exception e) {
                     int referenceId = log(e);
                     instanceReport.add(new LeafReport("Instance modification " + (before ? "before" : "after")
@@ -1514,10 +1386,22 @@ public final class ProcessMigration {
      * Begin building a new migration.
      *
      * @param processEngine The {@link ProcessEngine} to migrate in; might <b>not</b> be null.
-     * @return A new {@link EngineBuilder}, never null
+     * @return A new {@link RootScenarioBuilder}, never null
      *
      */
-    public static EngineBuilder in(ProcessEngine processEngine) {
-        return new EngineBuilder(processEngine);
+    public static RootScenarioBuilder in(ProcessEngine processEngine) {
+        return in(processEngine, null);
+    }
+
+    /**
+     * Begin building a new migration.
+     *
+     * @param processEngine The {@link ProcessEngine} to migrate in; might <b>not</b> be null.
+     * @param title The title of the root-scenario, might be null.
+     * @return A new {@link RootScenarioBuilder}, never null
+     *
+     */
+    public static RootScenarioBuilder in(ProcessEngine processEngine, String title) {
+        return new RootScenarioBuilder(processEngine, title);
     }
 }

@@ -27,11 +27,9 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -47,12 +45,10 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toLatestDefinitionVersion()
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -68,12 +64,10 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toSpecificDefinitionVersion(targetDefinition.getVersion())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -89,12 +83,10 @@ public class MigrateToTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toVersionTag(Processes.Common.VersionTags.REV2)
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());

@@ -30,23 +30,19 @@ public class MigrateWhenTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionId(sourceDefinition.getId())
                 .usingMapping(Processes.SplitActivity.Activities.DELETED_ACTIVITY, Processes.SplitActivity.Activities.FOO)
-                .when()
-                    .whereVariableEquals(Processes.Common.Variables.INT, 1)
-                    .beforeMigrate()
-                        .removeVariable(Processes.Common.Variables.INT)
-                    .afterMigrate()
-                        .setVariable(Processes.Common.Variables.STRING, "BAR")
-                        .modify()
-                            .cancelAllForActivity(Processes.SplitActivity.Activities.FOO)
-                            .startBeforeActivity(Processes.SplitActivity.Activities.BAR)
-                            .then()
-                    .then()
+                .when(condition -> condition
+                        .whereVariableEquals(Processes.Common.Variables.INT, 1)
+                        .beforeMigrate(modification -> modification
+                                .removeVariable(Processes.Common.Variables.INT))
+                        .afterMigrate(modification -> modification
+                                .setVariable(Processes.Common.Variables.STRING, "BAR")
+                                .modify(activityModification -> activityModification
+                                        .cancelAllForActivity(Processes.SplitActivity.Activities.FOO)
+                                        .startBeforeActivity(Processes.SplitActivity.Activities.BAR))))
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());

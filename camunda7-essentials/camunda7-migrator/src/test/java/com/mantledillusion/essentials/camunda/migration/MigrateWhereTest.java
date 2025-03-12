@@ -27,11 +27,9 @@ public class MigrateWhereTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionId(sourceDefinition.getId())
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -47,11 +45,9 @@ public class MigrateWhereTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -67,12 +63,10 @@ public class MigrateWhereTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .whereVersion(sourceDefinition.getVersion())
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -88,12 +82,10 @@ public class MigrateWhereTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .whereVersionTag(Processes.Common.VersionTags.REV1)
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -109,11 +101,9 @@ public class MigrateWhereTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereActivity(Processes.RelabelActivity.Activities.RELABELED_ACTIVITY)
                 .usingDefaultMappings()
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());

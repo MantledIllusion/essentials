@@ -28,11 +28,9 @@ public class MigrateFailureTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereDefinitionId(sourceDefinition.getId())
                 .onFailureSuspend(true)
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance instanceAfter = get(instanceBefore.getId());
@@ -51,12 +49,10 @@ public class MigrateFailureTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .whereVersionTag(Processes.Common.VersionTags.REV2)
                 .usingDefaultMappings()
                 .onFailureSkip(true)
                 .toDefinitionId(targetDefinition.getId())
-                .finalizeScenario()
                 .migrate();
 
         ProcessInstance renamedInstanceAfter = get(renamedInstanceBefore.getId());
@@ -76,18 +72,13 @@ public class MigrateFailureTest extends AbstractProcessMigrationTest {
 
         ProcessMigration
                 .in(engine)
-                .defineScenario()
                 .usingDefaultMappings()
                 .onFailureSkip(true)
                 .toDefinitionId(targetDefinition.getId())
-                .defineScenarios()
-                    .defineScenario()
-                        .whereDefinitionId(renamedSourceDefinition.getId())
-                        .finalizeScenario()
-                    .defineScenario()
-                        .whereDefinitionId(relabeledSourceDefinition.getId())
-                        .finalizeScenario()
-                    .finalizeScenarios()
+                .defineScenario(renamedScenario -> renamedScenario
+                        .whereDefinitionId(renamedSourceDefinition.getId()))
+                .defineScenario(relabeledScenario -> relabeledScenario
+                        .whereDefinitionId(relabeledSourceDefinition.getId()))
                 .migrate();
 
         ProcessInstance renamedInstanceAfter = get(renamedInstanceBefore.getId());

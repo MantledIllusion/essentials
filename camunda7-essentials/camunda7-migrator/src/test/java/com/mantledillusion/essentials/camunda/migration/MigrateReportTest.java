@@ -31,21 +31,16 @@ public class MigrateReportTest extends AbstractProcessMigrationTest {
         deploy(Processes.RelabelActivity.DEFINITION_KEY, Processes.Common.VersionTags.REV3);
 
         ProcessMigration.Report report = ProcessMigration
-                .in(engine)
-                .defineScenario(NAME_ROOT)
+                .in(engine, NAME_ROOT)
                 .whereDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .toDefinitionKey(Processes.RelabelActivity.DEFINITION_KEY)
                 .usingDefaultMappings()
-                .defineScenarios()
-                    .defineScenario(NAME_1_TO_2)
+                .defineScenario(NAME_1_TO_2, oneToTwoScenario -> oneToTwoScenario
                         .whereVersionTag(Processes.Common.VersionTags.REV1)
-                        .toVersionTag(Processes.Common.VersionTags.REV2)
-                        .finalizeScenario()
-                    .defineScenario(NAME_2_TO_3)
+                        .toVersionTag(Processes.Common.VersionTags.REV2))
+                .defineScenario(NAME_2_TO_3, twoToThreeScenario -> twoToThreeScenario
                         .whereVersionTag(Processes.Common.VersionTags.REV2)
-                        .toVersionTag(Processes.Common.VersionTags.REV3)
-                        .finalizeScenario()
-                    .finalizeScenarios()
+                        .toVersionTag(Processes.Common.VersionTags.REV3))
                 .migrate();
 
         assertEquals("Scenario: " + NAME_ROOT, report.getTitle());
