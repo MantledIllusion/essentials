@@ -49,6 +49,7 @@
 		<module>spring5-essentials</module>
 		<module>vaadin8-essentials</module>
 		<module>vaadin14-essentials</module>
+		<module>vaadin24-essentials</module>
 	</modules>
 
 	<distributionManagement>

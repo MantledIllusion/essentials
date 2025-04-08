@@ -1,0 +1,41 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.mantledillusion.essentials</groupId>
+		<artifactId>essentials-parent</artifactId>
+		<version>1.11.0-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
+	</parent>
+	
+	<artifactId>vaadin24-essentials-parent</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+	
+	<name>Vaadin 24 Essentials</name>
+	<description>Vaadin 24 Essentials contain useful utilities and composite components for Vaadin 24 development.</description>
+	<url>http://www.mantledillusion.com</url>
+
+	<properties>
+		<vaadin-flow.version>24.7.1</vaadin-flow.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.vaadin</groupId>
+				<artifactId>vaadin-bom</artifactId>
+				<version>${vaadin-flow.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<modules>
+		<module>vaadin24-filter-bar</module>
+		<module>vaadin24-graph-pane</module>
+		<module>vaadin24-heat-calendar</module>
+	</modules>
+</project>
