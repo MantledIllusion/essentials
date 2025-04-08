@@ -18,7 +18,7 @@
 	<url>http://www.mantledillusion.com</url>
 
 	<properties>
-		<camunda.version>7.22.0</camunda.version>
+		<camunda.version>7.23.0</camunda.version>
 		<junit.version>5.9.3</junit.version>
 	</properties>
 
