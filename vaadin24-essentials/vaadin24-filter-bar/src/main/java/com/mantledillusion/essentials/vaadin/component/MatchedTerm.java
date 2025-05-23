@@ -1,12 +1,14 @@
 package com.mantledillusion.essentials.vaadin.component;
 
+import com.mantledillusion.data.collo.Term;
+
 /**
- * A group of {@link MatchedFilterInputPart}s.
+ * A term of {@link MatchedKeyword}s.
  */
-public interface MatchedFilterInputGroup {
+public interface MatchedTerm extends Term {
 
     /**
-     * Returns the priority of the group against other groups when listing {@link MatchedFilter}s.
+     * Returns the priority of the term against other terms when listing {@link MatchedFilter}s.
      * <p>
      * The lower the value the higher the priority.
      *

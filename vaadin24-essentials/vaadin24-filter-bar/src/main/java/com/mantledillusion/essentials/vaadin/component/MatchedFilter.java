@@ -8,101 +8,99 @@ import java.util.function.Function;
 /**
  * A {@link MatchedFilter} created by a user of a {@link FilterBar}.
  *
- * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
- *           (for example a name, an address, a specific ID, ...).
- * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
- *           the input groups (a first name, a last name, a company name, a zip code, ...).
+ * @param <T> The {@link MatchedTerm} representing the terms (for example a name, an address, a specific ID, ...)
+ * @param <K> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
  */
-public final class MatchedFilter<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> {
+public final class MatchedFilter<T extends MatchedTerm, K extends MatchedKeyword> {
 
-    private final String term;
-    private final G group;
-    private final Map<P, String> parts;
+    private final String input;
+    private final T term;
+    private final Map<K, String> keywords;
 
     private Long matchCount;
 
-    MatchedFilter(String term, G group, Map<P, String> parts) {
+    MatchedFilter(String input, T term, Map<K, String> keywords) {
+        this.input = input;
         this.term = term;
-        this.group = group;
-        this.parts = Collections.unmodifiableMap(parts);
+        this.keywords = Collections.unmodifiableMap(keywords);
     }
 
     /**
-     * The raw term as it was put into the search bar.
+     * The raw input as it was put into the search bar.
+     *
+     * @return The input, never null
+     */
+    public String getInput() {
+        return input;
+    }
+
+    /**
+     * Returns the term the input of the filter belongs to.
      *
      * @return The term, never null
      */
-    public String getTerm() {
-        return term;
+    public T getTerm() {
+        return this.term;
     }
 
     /**
-     * Returns the group the input of the filter belongs to.
-     *
-     * @return The group, never null
-     */
-    public G getGroup() {
-        return this.group;
-    }
-
-    /**
-     * Returns the priority this {@link MatchedFilter} has in relation to other {@link MatchedFilter}s based on its group.
+     * Returns the priority this {@link MatchedFilter} has in relation to other {@link MatchedFilter}s based on its term.
      * <p>
      * The lower the value the higher the priority.
      *
      * @return The priority
      */
-    public long getGroupPriority() {
-        return this.group.getPriority();
+    public long getTermPriority() {
+        return this.term.getPriority();
     }
 
     /**
-     * Returns whether the given part is included in the matched filter and can be retrieved using {@link #getPart(Enum)}.
+     * Returns whether the given keyword is included in the matched filter and can be retrieved using {@link #getKeywordInput(MatchedKeyword)}}.
      *
-     * @param part The part; might be null.
-     * @return True if the part is included, false otherwise
+     * @param keyword The keyword; might be null.
+     * @return True if the keyword is included, false otherwise
      */
-    public boolean hasPart(P part) {
-        return this.parts.containsKey(part);
+    public boolean hasPart(K keyword) {
+        return this.keywords.containsKey(keyword);
     }
 
     /**
-     * Returns all parts the input was separated into.
+     * Returns all keywords the input was separated into.
      *
-     * @return The parts, never null or empty
+     * @return The keywords, never null or empty
      */
-    public Set<P> getParts() {
-        return this.parts.keySet();
+    public Set<K> getKeywords() {
+        return this.keywords.keySet();
     }
 
     /**
-     * Returns all parts the input was separated into.
+     * Returns all keywords the input was separated into.
      *
-     * @return The parts, never null or empty
+     * @return The keywords, never null or empty
      */
-    public Map<P, String> getPartMappings() {
-        return this.parts;
+    public Map<K, String> getKeywordInputs() {
+        return this.keywords;
     }
 
     /**
-     * Retrieves a part from this {@link FilterBar}.
+     * Retrieves a keyword's input from this {@link MatchedFilter}.
      *
-     * @param part The part to retrieve; might be null.
-     * @return The part, never null if the given part is included in {@link #getParts()}
+     * @param keyword The keyword to retrieve; might be null.
+     * @return The keyword, never null if the given part is included in {@link #getKeywords()}
      */
-    public String getPart(P part) {
-        return this.parts.get(part);
+    public String getKeywordInput(K keyword) {
+        return this.keywords.get(keyword);
     }
 
     /**
-     * Returns the priority this {@link MatchedFilter} has in relation to other {@link MatchedFilter}s based on its group.
+     * Returns the priority this {@link MatchedFilter} has in relation to other {@link MatchedFilter}s based on its keywords.
      * <p>
      * The lower the value the higher the priority.
      *
      * @return The priority
      */
-    public long getPartPriority() {
-        return this.parts.keySet().stream().mapToLong(MatchedFilterInputPart::getPriority).sum();
+    public long getKeywordPriority() {
+        return this.keywords.keySet().stream().mapToLong(MatchedKeyword::getPriority).sum();
     }
 
     /**

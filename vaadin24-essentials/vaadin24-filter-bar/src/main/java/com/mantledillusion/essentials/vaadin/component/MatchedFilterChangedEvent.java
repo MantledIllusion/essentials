@@ -7,17 +7,15 @@ import java.util.List;
 /**
  * {@link ComponentEvent} fired when there is at least one {@link MatchedFilter} added or removed from its {@link FilterBar}.
  *
- * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
- *           (for example a name, an address, a specific ID, ...).
- * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
- *           the input groups (a first name, a last name, a company name, a zip code, ...).
+ * @param <T> The {@link MatchedTerm} representing the terms (for example a name, an address, a specific ID, ...)
+ * @param <P> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
  */
-public final class MatchedFilterChangedEvent<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> extends ComponentEvent<FilterBar<G, P>> {
+public final class MatchedFilterChangedEvent<T extends MatchedTerm, P extends MatchedKeyword> extends ComponentEvent<FilterBar<T, P>> {
 
-    private final List<MatchedFilter<G, P>> added;
-    private final List<MatchedFilter<G, P>> removed;
+    private final List<MatchedFilter<T, P>> added;
+    private final List<MatchedFilter<T, P>> removed;
 
-    MatchedFilterChangedEvent(FilterBar<G, P> source, boolean fromClient, List<MatchedFilter<G, P>> added, List<MatchedFilter<G, P>> removed) {
+    MatchedFilterChangedEvent(FilterBar<T, P> source, boolean fromClient, List<MatchedFilter<T, P>> added, List<MatchedFilter<T, P>> removed) {
         super(source, fromClient);
         this.added = added;
         this.removed = removed;
@@ -28,7 +26,7 @@ public final class MatchedFilterChangedEvent<G extends Enum<G> & MatchedFilterIn
      *
      * @return The {@link MatchedFilter}s, never null
      */
-    public List<MatchedFilter<G, P>> getAdded() {
+    public List<MatchedFilter<T, P>> getAdded() {
         return this.added;
     }
 
@@ -37,7 +35,7 @@ public final class MatchedFilterChangedEvent<G extends Enum<G> & MatchedFilterIn
      *
      * @return The {@link MatchedFilter}s, never null
      */
-    public List<MatchedFilter<G, P>> getRemoved() {
+    public List<MatchedFilter<T, P>> getRemoved() {
         return this.removed;
     }
 }

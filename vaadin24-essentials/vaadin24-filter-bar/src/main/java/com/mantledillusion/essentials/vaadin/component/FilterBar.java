@@ -1,12 +1,12 @@
 package com.mantledillusion.essentials.vaadin.component;
 
-import com.mantledillusion.data.collo.InputAnalyzer;
+import com.mantledillusion.data.collo.TermAnalyzer;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.contextmenu.SubMenu;
-import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.menubar.MenuBar;
 import com.vaadin.flow.component.menubar.MenuBarVariant;
@@ -27,26 +27,24 @@ import java.util.stream.Stream;
 /**
  * Component for building the most complex filter constellations on-the-fly in the UI.
  * <p>
- * Uses Collo's {@link InputAnalyzer} for realtime input categorization.
+ * Uses Collo's {@link TermAnalyzer} for realtime input recognition.
  *
- * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
- *           (for example a name, an address, a specific ID, ...).
- * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
- *           the input groups (a first name, a last name, a company name, a zip code, ...).
+ * @param <T> The {@link MatchedTerm} representing the terms (for example a name, an address, a specific ID, ...)
+ * @param <K> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
  */
-public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> extends Composite<Component> implements HasSize {
+public class FilterBar<T extends MatchedTerm, K extends MatchedKeyword> extends Composite<Component> implements HasSize {
 
     private class MatchedFilterQuery {
 
-        private final List<MatchedFilter<G, P>> matches;
+        private final List<MatchedFilter<T, K>> matches;
 
         private MatchedFilterQuery(String term) {
             this.matches = FilterBar.this.analyzer.analyze(term).entrySet().stream()
                     .flatMap(entry -> entry.getValue().stream()
-                            .map(parts -> new MatchedFilter<>(term, entry.getKey(), parts)))
-                    .sorted((f1, f2) -> f1.getGroupPriority() == f2.getGroupPriority()
-                            ? Long.compare(f1.getPartPriority(), f2.getPartPriority())
-                            : Long.compare(f1.getGroupPriority(), f2.getGroupPriority()))
+                            .map(keywords -> new MatchedFilter<>(term, entry.getKey(), keywords)))
+                    .sorted((f1, f2) -> f1.getTermPriority() == f2.getTermPriority()
+                            ? Long.compare(f1.getKeywordPriority(), f2.getKeywordPriority())
+                            : Long.compare(f1.getTermPriority(), f2.getTermPriority()))
                     .collect(Collectors.toList());
 
             if (FilterBar.this.matchCountRetriever != null) {
@@ -68,7 +66,7 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
             return this.matches.size();
         }
 
-        private Stream<MatchedFilter<G, P>> fetch(int offset, int limit) {
+        private Stream<MatchedFilter<T, K>> fetch(int offset, int limit) {
             return this.matches.stream().skip(offset).limit(limit);
         }
     }
@@ -86,15 +84,15 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
 
     private final class FilterModification {
 
-        private final List<BiConsumer<List<MatchedFilter<G, P>>, List<MatchedFilter<G, P>>>> modifications = new ArrayList<>();
+        private final List<BiConsumer<List<MatchedFilter<T, K>>, List<MatchedFilter<T, K>>>> modifications = new ArrayList<>();
 
-        private void add(BiConsumer<List<MatchedFilter<G, P>>, List<MatchedFilter<G, P>>> modification) {
+        private void add(BiConsumer<List<MatchedFilter<T, K>>, List<MatchedFilter<T, K>>> modification) {
             this.modifications.add(modification);
         }
 
         private void apply(boolean isFromClient) {
-            List<MatchedFilter<G, P>> added = new ArrayList<>();
-            List<MatchedFilter<G, P>> removed = new ArrayList<>();
+            List<MatchedFilter<T, K>> added = new ArrayList<>();
+            List<MatchedFilter<T, K>> removed = new ArrayList<>();
 
             this.modifications.forEach(modification -> modification.accept(added, removed));
 
@@ -124,84 +122,84 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
     public abstract class MatchedFilterBuilder<B> {
 
         /**
-         * Builder for a single modification to a specific group of {@link MatchedFilter}s.
+         * Builder for a single modification to a specific term of {@link MatchedFilter}s.
          */
-        public class MatchedFilterGroupBuilder {
+        public class MatchedTermBuilder {
 
-            private final G group;
-            private final List<Predicate<Map<P, String>>> parts = new ArrayList<>();
+            private final T term;
+            private final List<Predicate<Map<K, String>>> keywords = new ArrayList<>();
 
-            private MatchedFilterGroupBuilder(G group) {
-                this.group = group;
+            private MatchedTermBuilder(T term) {
+                this.term = term;
             }
 
             /**
-             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being present.
+             * Adds a {@link Predicate} for a specific {@link MatchedKeyword} being present.
              *
-             * @param part The part that needs to be present in a group in order for the modification to apply; might <b>not</b> be null.
+             * @param keyword The keyword that needs to be present in a term in order for the modification to apply; might <b>not</b> be null.
              * @return this
              */
-            public MatchedFilterGroupBuilder andPartPresent(P part) {
-                if (part == null) {
-                    throw new IllegalArgumentException("Cannot filter for a null part");
+            public MatchedTermBuilder andKeywordPresent(K keyword) {
+                if (keyword == null) {
+                    throw new IllegalArgumentException("Cannot filter for a null keyword");
                 }
-                this.parts.add(parts -> parts.containsKey(part));
+                this.keywords.add(keywords -> keywords.containsKey(keyword));
                 return this;
             }
 
             /**
-             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being absent.
+             * Adds a {@link Predicate} for a specific {@link MatchedKeyword} being absent.
              *
-             * @param part The part that needs to be absent in a group in order for the modification to apply; might <b>not</b> be null.
+             * @param keyword The keyword that needs to be absent in a term in order for the modification to apply; might <b>not</b> be null.
              * @return this
              */
-            public MatchedFilterGroupBuilder andPartAbsent(P part) {
-                if (part == null) {
-                    throw new IllegalArgumentException("Cannot filter for a null part");
+            public MatchedTermBuilder andKeywordAbsent(K keyword) {
+                if (keyword == null) {
+                    throw new IllegalArgumentException("Cannot filter for a null keyword");
                 }
-                this.parts.add(parts -> !parts.containsKey(part));
+                this.keywords.add(keywords -> !keywords.containsKey(keyword));
                 return this;
             }
 
             /**
-             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being present and matching the given regular expressen.
+             * Adds a {@link Predicate} for a specific {@link MatchedKeyword} being present and matching the given regular expression.
              *
-             * @param part The part that needs to be present and matching in a group in order for the modification to apply; might <b>not</b> be null.
-             * @param regex The regex the part needs to match; might <b>not</b> be null.
+             * @param keyword The keyword that needs to be present and matching in a term in order for the modification to apply; might <b>not</b> be null.
+             * @param regex The regex the keyword needs to match; might <b>not</b> be null.
              * @return this
              */
-            public MatchedFilterGroupBuilder andPartMatching(P part, String regex) {
-                if (part == null) {
-                    throw new IllegalArgumentException("Cannot filter for a null part");
+            public MatchedTermBuilder andKeywordMatching(K keyword, String regex) {
+                if (keyword == null) {
+                    throw new IllegalArgumentException("Cannot filter for a null keyword");
                 } else if (regex == null) {
                     throw new IllegalArgumentException("Cannot match against a null regex");
                 }
-                this.parts.add(parts -> parts.containsKey(part) && parts.get(part).matches(regex));
+                this.keywords.add(keywords -> keywords.containsKey(keyword) && keywords.get(keyword).matches(regex));
                 return this;
             }
 
             /**
              * Adds {@link MatchedFilter}s for the given term.
              * <p>
-             * From all the part sets analyzed from the given term, only such {@link MatchedFilter}s are added whose
-             * {@link MatchedFilterInputPart}s match the filters specified by:
+             * From all the keyword sets analyzed from the given term, only such {@link MatchedFilter}s are added whose
+             * {@link MatchedKeyword}s match the filters specified by:
              * <p>
-             * - {@link #andPartPresent(Enum)}<br>
-             * - {@link #andPartAbsent(Enum)}<br>
-             * - {@link #andPartMatching(Enum, String)}<br>
+             * - {@link #andKeywordPresent(MatchedKeyword)}<br>
+             * - {@link #andKeywordAbsent(MatchedKeyword)}<br>
+             * - {@link #andKeywordMatching(MatchedKeyword, String)}<br>
              *
-             * @param term The term to add {@link MatchedFilter}s for; might <b>not</b> be null.
-             * @return This {@link MatchedFilterGroupBuilder}'s parent {@link MatchedFilterBuilder}
+             * @param input The term to add {@link MatchedFilter}s for; might <b>not</b> be null.
+             * @return This {@link MatchedTermBuilder}'s parent {@link MatchedFilterBuilder}
              */
-            public MatchedFilterBuilder<B> add(String term) {
-                if (term == null) {
+            public MatchedFilterBuilder<B> add(String input) {
+                if (input == null) {
                     throw new IllegalArgumentException("Cannot add a filter for a null term");
                 }
 
                 MatchedFilterBuilder.this.modification.add((added, removed) -> FilterBar.this
-                        .analyzer.analyzeForGroup(term, this.group).stream()
-                        .filter(parts -> this.parts.stream().allMatch(part -> part.test(parts)))
-                        .map(parts -> new MatchedFilter<>(term, this.group, parts))
+                        .analyzer.analyze(input, this.term).stream()
+                        .filter(keywords -> this.keywords.stream().allMatch(keyword -> keyword.test(keywords)))
+                        .map(keywords -> new MatchedFilter<>(input, this.term, keywords))
                         .forEach(added::add));
 
                 return MatchedFilterBuilder.this;
@@ -210,19 +208,19 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
             /**
              * Removes {@link MatchedFilter}s.
              * <p>
-             * Only such {@link MatchedFilter}s are added whose {@link MatchedFilterInputPart}s match the filters specified by:
+             * Only such {@link MatchedFilter}s are added whose {@link MatchedKeyword}s match the filters specified by:
              * <p>
-             * - {@link #andPartPresent(Enum)}<br>
-             * - {@link #andPartAbsent(Enum)}<br>
-             * - {@link #andPartMatching(Enum, String)}<br>
+             * - {@link #andKeywordPresent(MatchedKeyword)}<br>
+             * - {@link #andKeywordAbsent(MatchedKeyword)}<br>
+             * - {@link #andKeywordMatching(MatchedKeyword, String)}<br>
              *
-             * @return This {@link MatchedFilterGroupBuilder}'s parent {@link MatchedFilterBuilder}
+             * @return This {@link MatchedTermBuilder}'s parent {@link MatchedFilterBuilder}
              */
             public MatchedFilterBuilder<B> remove() {
                 MatchedFilterBuilder.this.modification.add((added, removed) -> FilterBar.this
                         .filters.keySet().stream()
-                        .filter(filter -> filter.getGroup() == this.group)
-                        .filter(filter -> this.parts.stream().allMatch(part -> part.test(filter.getPartMappings())))
+                        .filter(filter -> filter.getTerm() == this.term)
+                        .filter(filter -> this.keywords.stream().allMatch(keyword -> keyword.test(filter.getKeywordInputs())))
                         .forEach(removed::add));
 
                 return MatchedFilterBuilder.this;
@@ -238,16 +236,16 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         }
 
         /**
-         * Begins a new {@link MatchedFilterGroupBuilder} for a specific group.
+         * Begins a new {@link MatchedTermBuilder} for a specific term.
          *
-         * @param group The group to create a modification for; might <b>not</b> be null.
-         * @return A new {@link MatchedFilterGroupBuilder}, never null
+         * @param term The term to create a modification for; might <b>not</b> be null.
+         * @return A new {@link MatchedTermBuilder}, never null
          */
-        public MatchedFilterGroupBuilder forGroup(G group) {
-            if (group == null) {
-                throw new IllegalArgumentException("Cannot begin modifying a null group");
+        public MatchedTermBuilder forTerm(T term) {
+            if (term == null) {
+                throw new IllegalArgumentException("Cannot begin modifying a null term");
             }
-            return new MatchedFilterGroupBuilder(group);
+            return new MatchedTermBuilder(term);
         }
 
         /**
@@ -322,27 +320,27 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         }
     }
 
-    private final InputAnalyzer<G, P> analyzer;
-    private final Map<MatchedFilter<G, P>, Component> filters = new IdentityHashMap<>();
+    private final TermAnalyzer<T, K> analyzer;
+    private final Map<MatchedFilter<T, K>, Component> filters = new IdentityHashMap<>();
 
     private final VerticalLayout mainLayout;
     private final MenuBar favorites;
-    private final ComboBox<MatchedFilter<G, P>> filterInput;
+    private final ComboBox<MatchedFilter<T, K>> filterInput;
     private final HorizontalLayout filterLayout;
 
-    private Function<G, String> groupRenderer = String::valueOf;
-    private Function<P, String> partRenderer = String::valueOf;
+    private Function<T, String> termRenderer = String::valueOf;
+    private Function<K, String> keywordRenderer = String::valueOf;
 
-    private Function<MatchedFilter<G, P>, Long> matchCountRetriever = null;
+    private Function<MatchedFilter<T, K>, Long> matchCountRetriever = null;
     private MatchCountMode matchCountMode = MatchCountMode.CAPPED;
     private Integer matchCountThreshold = Integer.MAX_VALUE;
 
     /**
      * Advanced constructor.
      *
-     * @param analyzer The {@link InputAnalyzer} to use; might <b>not</b> be null;
+     * @param analyzer The {@link TermAnalyzer} to use; might <b>not</b> be null;
      */
-    public FilterBar(InputAnalyzer<G, P> analyzer) {
+    public FilterBar(TermAnalyzer<T, K> analyzer) {
         if (analyzer == null) {
             throw new IllegalArgumentException("Cannot operate on a null analyzer");
         }
@@ -370,14 +368,14 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         this.favorites.setVisible(false);
         functionLayout.add(this.favorites);
 
-        CallbackDataProvider.FetchCallback<MatchedFilter<G, P>, MatchedFilterQuery> fetcher = query -> query.getFilter()
+        CallbackDataProvider.FetchCallback<MatchedFilter<T, K>, MatchedFilterQuery> fetcher = query -> query.getFilter()
                 .map(matches -> matches.fetch(query.getOffset(), query.getLimit())).orElse(Stream.empty());
-        CallbackDataProvider.CountCallback<MatchedFilter<G, P>, MatchedFilterQuery> counter = query -> query.getFilter()
+        CallbackDataProvider.CountCallback<MatchedFilter<T, K>, MatchedFilterQuery> counter = query -> query.getFilter()
                 .map(MatchedFilterQuery::count).orElse(0);
         this.filterInput = new ComboBox<>();
         this.filterInput.setWidthFull();
         this.filterInput.setDataProvider(new CallbackDataProvider<>(fetcher, counter), MatchedFilterQuery::new);
-        this.filterInput.setItemLabelGenerator(MatchedFilter::getTerm);
+        this.filterInput.setItemLabelGenerator(MatchedFilter::getInput);
         this.filterInput.setRenderer(new ComponentRenderer<>(this::renderAsMatch));
         this.filterInput.addValueChangeListener(event -> {
             if (event.getValue() != null) {
@@ -392,7 +390,7 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         removeAllBtn.getElement().getStyle().set("margin-top", "0px");
         removeAllBtn.getElement().getStyle().set("margin-bottom", "0px");
         removeAllBtn.addClickListener(event -> {
-            List<MatchedFilter<G, P>> filters = Collections.unmodifiableList(new ArrayList<>(this.filters.keySet()));
+            List<MatchedFilter<T, K>> filters = Collections.unmodifiableList(new ArrayList<>(this.filters.keySet()));
             filters.forEach(this::removeFilter);
             notify(Collections.emptyList(), filters, event.isFromClient());
         });
@@ -413,7 +411,7 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         return this.mainLayout;
     }
 
-    private Component renderAsMatch(MatchedFilter<G, P> filter) {
+    private Component renderAsMatch(MatchedFilter<T, K> filter) {
         VerticalLayout matchLayout = new VerticalLayout();
         matchLayout.setWidthFull();
         matchLayout.setHeight(null);
@@ -421,45 +419,45 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         matchLayout.setPadding(false);
         matchLayout.setSpacing(false);
 
-        HorizontalLayout groupLayout = new HorizontalLayout();
-        groupLayout.setWidthFull();
-        groupLayout.setHeight(null);
-        groupLayout.setMargin(false);
-        groupLayout.setPadding(false);
-        matchLayout.add(groupLayout);
+        HorizontalLayout termLayout = new HorizontalLayout();
+        termLayout.setWidthFull();
+        termLayout.setHeight(null);
+        termLayout.setMargin(false);
+        termLayout.setPadding(false);
+        matchLayout.add(termLayout);
 
-        Label groupLabel = new Label(this.groupRenderer.apply(filter.getGroup()));
-        groupLabel.setWidthFull();
-        groupLayout.getElement().getStyle().set("font-weight", "bold");
-        groupLayout.add(groupLabel);
+        NativeLabel termLabel = new NativeLabel(this.termRenderer.apply(filter.getTerm()));
+        termLabel.setWidthFull();
+        termLayout.getElement().getStyle().set("font-weight", "bold");
+        termLayout.add(termLabel);
 
         if (filter.getMatchCount() != null) {
-            Label countLabel = new Label(String.valueOf(filter.getMatchCount()));
+            NativeLabel countLabel = new NativeLabel(String.valueOf(filter.getMatchCount()));
             countLabel.getElement().getStyle().set("padding-top", "2px");
             countLabel.getElement().getStyle().set("padding-bottom", "2px");
             countLabel.getElement().getStyle().set("padding-right", "5px");
             countLabel.getElement().getStyle().set("padding-left", "5px");
             countLabel.getElement().getStyle().set("background-color", "rgba(128,128,128,0.1)");
             countLabel.getElement().getStyle().set("font-size", "0.75em");
-            groupLayout.add(countLabel);
-            groupLayout.setVerticalComponentAlignment(FlexComponent.Alignment.CENTER, countLabel);
+            termLayout.add(countLabel);
+            termLayout.setVerticalComponentAlignment(FlexComponent.Alignment.CENTER, countLabel);
         }
 
-        String partHtml = filter.getPartMappings().entrySet().stream()
-                .map(entry -> "<b>" + this.partRenderer.apply(entry.getKey()) + "</b>: "
+        String keywordHtml = filter.getKeywordInputs().entrySet().stream()
+                .map(entry -> "<b>" + this.keywordRenderer.apply(entry.getKey()) + "</b>: "
                         + "<i>" + entry.getValue() + "</i>")
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("");
-        Html partLabel = new Html("<span>" + partHtml + "</span>");
-        partLabel.getElement().getStyle().set("font-size", "0.70em");
-        matchLayout.add(partLabel);
+        Html keywordLabel = new Html("<span>" + keywordHtml + "</span>");
+        keywordLabel.getElement().getStyle().set("font-size", "0.70em");
+        matchLayout.add(keywordLabel);
 
         return matchLayout;
     }
 
-    private void addFilter(MatchedFilter<G, P> filter) {
-        String badgeLabel = filter.getPartMappings().entrySet().stream()
-                .map(entry -> this.partRenderer.apply(entry.getKey()) + ": " + entry.getValue())
+    private void addFilter(MatchedFilter<T, K> filter) {
+        String badgeLabel = filter.getKeywordInputs().entrySet().stream()
+                .map(entry -> this.keywordRenderer.apply(entry.getKey()) + ": " + entry.getValue())
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("");
 
@@ -476,12 +474,12 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         this.filterLayout.add(filterBadge);
     }
 
-    private void removeFilter(MatchedFilter<G, P> filter) {
+    private void removeFilter(MatchedFilter<T, K> filter) {
         this.filterLayout.remove(this.filters.get(filter));
         this.filters.remove(filter);
     }
 
-    private void notify(List<MatchedFilter<G, P>> added, List<MatchedFilter<G, P>> removed, boolean isFromClient) {
+    private void notify(List<MatchedFilter<T, K>> added, List<MatchedFilter<T, K>> removed, boolean isFromClient) {
         fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, added, removed));
     }
 
@@ -506,45 +504,45 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
     }
 
     /**
-     * Returns the currently used renderer for displaying groups.
+     * Returns the currently used renderer for displaying terms.
      *
      * @return The renderer, never null
      */
-    public Function<G, String> getGroupRenderer() {
-        return this.groupRenderer;
+    public Function<T, String> getTermRenderer() {
+        return this.termRenderer;
     }
 
     /**
-     * Sets the render for displaying groups.
+     * Sets the render for displaying terms.
      *
-     * @param groupRenderer The renderer; might <b>not</b> be null.
+     * @param termRenderer The renderer; might <b>not</b> be null.
      */
-    public void setGroupRenderer(Function<G, String> groupRenderer) {
-        if (groupRenderer == null) {
-            throw new IllegalArgumentException("Cannot render groups using a null renderer");
+    public void setTermRenderer(Function<T, String> termRenderer) {
+        if (termRenderer == null) {
+            throw new IllegalArgumentException("Cannot render terms using a null renderer");
         }
-        this.groupRenderer = groupRenderer;
+        this.termRenderer = termRenderer;
     }
 
     /**
-     * Returns the currently used renderer for displaying parts.
+     * Returns the currently used renderer for displaying keywords.
      *
      * @return The renderer, never null
      */
-    public Function<P, String> getPartRenderer() {
-        return partRenderer;
+    public Function<K, String> getKeywordRenderer() {
+        return keywordRenderer;
     }
 
     /**
-     * Sets the render for displaying parts.
+     * Sets the render for displaying keywords.
      *
-     * @param partRenderer The renderer; might <b>not</b> be null.
+     * @param keywordRenderer The renderer; might <b>not</b> be null.
      */
-    public void setPartRenderer(Function<P, String> partRenderer) {
-        if (groupRenderer == null) {
-            throw new IllegalArgumentException("Cannot render parts using a null renderer");
+    public void setKeywordRenderer(Function<K, String> keywordRenderer) {
+        if (termRenderer == null) {
+            throw new IllegalArgumentException("Cannot render keywords using a null renderer");
         }
-        this.partRenderer = partRenderer;
+        this.keywordRenderer = keywordRenderer;
     }
 
     /**
@@ -554,7 +552,7 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
      *
      * @param matchCountRetriever The estimating {@link Function}; might be null, then no match count is displayed
      */
-    public void setMatchCountRetriever(Function<MatchedFilter<G, P>, Long> matchCountRetriever) {
+    public void setMatchCountRetriever(Function<MatchedFilter<T, K>, Long> matchCountRetriever) {
         this.matchCountRetriever = matchCountRetriever;
     }
 
@@ -599,7 +597,7 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
      * @return A {@link Registration} to remove the listener with, never null
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Registration addFilterChangedListener(ComponentEventListener<MatchedFilterChangedEvent<G, P>> listener) {
+    public Registration addFilterChangedListener(ComponentEventListener<MatchedFilterChangedEvent<T, K>> listener) {
         return addListener(MatchedFilterChangedEvent.class, (ComponentEventListener) listener);
     }
 }
