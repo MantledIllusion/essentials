@@ -2,19 +2,41 @@ package com.mantledillusion.essentials.vaadin.component;
 
 import com.mantledillusion.data.collo.Term;
 
+import java.util.List;
+
 /**
  * A term of {@link MatchedKeyword}s.
  */
-public interface MatchedTerm extends Term {
+public interface MatchedTerm<K extends MatchedKeyword> extends Term<K> {
 
     /**
-     * Returns the priority of the term against other terms when listing {@link MatchedFilter}s.
-     * <p>
-     * The lower the value the higher the priority.
+     * Returns an ordered list of matches serving as clickable favorites to the term.
      *
-     * @return the priority, 0 by default
+     * @return A list of {@link KeywordMatch}es, might be null
      */
-    default long getPriority() {
-        return 0L;
+    default List<KeywordMatch<K>> getFavorites() {
+        return null;
+    }
+
+    /**
+     * Returns an ordered list of matches serving as displayable examples to the term.
+     *
+     * @return A list of {@link KeywordMatch}es, might be null
+     */
+    default List<KeywordMatch<K>> getExamples() {
+        return null;
+    }
+
+    /**
+     * Returns the maximum count of matched keyword combinations to display for the term.
+     * <p>
+     * Defaults to three, the fourth and following matches after sorting by
+     * {@link com.mantledillusion.data.collo.Keyword#weight(String, String)} will be shown collapsed and have to be
+     * expanded by the user.
+     *
+     * @return The maximum count of matches to display, at least one
+     */
+    default int displayThreshold() {
+        return 3;
     }
 }

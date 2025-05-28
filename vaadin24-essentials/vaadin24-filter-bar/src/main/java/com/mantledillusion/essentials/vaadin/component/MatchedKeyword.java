@@ -29,15 +29,4 @@ public interface MatchedKeyword extends Keyword {
     default String getInvalidLabel(String input) {
         return null;
     }
-
-    /**
-     * Returns the priority of the keyword against other keywords when listing {@link MatchedFilter}s.
-     * <p>
-     * The lower the value the higher the priority.
-     *
-     * @return the priority, 0 by default
-     */
-    default long getPriority() {
-        return 0L;
-    }
 }
