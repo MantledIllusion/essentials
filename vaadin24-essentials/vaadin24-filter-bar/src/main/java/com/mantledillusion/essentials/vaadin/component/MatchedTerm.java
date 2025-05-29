@@ -3,6 +3,7 @@ package com.mantledillusion.essentials.vaadin.component;
 import com.mantledillusion.data.collo.Term;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * A term of {@link MatchedKeyword}s.
@@ -25,6 +26,10 @@ public interface MatchedTerm<K extends MatchedKeyword> extends Term<K> {
      */
     default List<KeywordMatch<K>> getExamples() {
         return null;
+    }
+
+    default boolean isCombinable(Map<K, String> keywords, MatchedFilter<? extends MatchedTerm<K>, K> other) {
+        return true;
     }
 
     /**

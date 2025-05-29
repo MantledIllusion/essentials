@@ -2,7 +2,7 @@ package com.mantledillusion.essentials.vaadin.component;
 
 import com.vaadin.flow.component.ComponentEvent;
 
-import java.util.List;
+import java.util.Set;
 
 /**
  * {@link ComponentEvent} fired when there is at least one {@link MatchedFilter} added or removed from its {@link FilterBar}.
@@ -12,41 +12,65 @@ import java.util.List;
  */
 public final class MatchedFilterChangedEvent<T extends MatchedTerm<K>, K extends MatchedKeyword> extends ComponentEvent<FilterBar<T, K>> {
 
-    private final List<MatchedFilter<T, K>> added;
-    private final List<MatchedFilter<T, K>> removed;
-    private final MatchedFilterOperator operator;
+    private final Set<MatchedFilter<T, K>> addedFilters;
+    private final Set<MatchedFilter<T, K>> removedFilters;
+    private final Set<MatchedFilter<T, K>> currentFilters;
+    private final MatchedFilterOperator previousOperator;
+    private final MatchedFilterOperator currentOperator;
 
-    MatchedFilterChangedEvent(FilterBar<T, K> source, boolean fromClient, List<MatchedFilter<T, K>> added, List<MatchedFilter<T, K>> removed, MatchedFilterOperator operator) {
+    MatchedFilterChangedEvent(FilterBar<T, K> source, boolean fromClient,
+                              Set<MatchedFilter<T, K>> addedFilters, Set<MatchedFilter<T, K>> removedFilters, Set<MatchedFilter<T, K>> currentFilters,
+                              MatchedFilterOperator previousOperator, MatchedFilterOperator currentOperator) {
         super(source, fromClient);
-        this.added = added;
-        this.removed = removed;
-        this.operator = operator;
+        this.currentFilters = currentFilters;
+        this.addedFilters = addedFilters;
+        this.removedFilters = removedFilters;
+        this.previousOperator = previousOperator;
+        this.currentOperator = currentOperator;
     }
 
     /**
      * The {@link MatchedFilter}s added to the {@link FilterBar}.
      *
-     * @return The {@link MatchedFilter}s, never null
+     * @return The {@link MatchedFilter}s, never null, might be empty if none was added
      */
-    public List<MatchedFilter<T, K>> getAdded() {
-        return this.added;
+    public Set<MatchedFilter<T, K>> getAddedFilters() {
+        return this.addedFilters;
     }
 
     /**
      * The {@link MatchedFilter}s removed from the {@link FilterBar}.
      *
-     * @return The {@link MatchedFilter}s, never null
+     * @return The {@link MatchedFilter}s, never null, might be empty if none was removed
      */
-    public List<MatchedFilter<T, K>> getRemoved() {
-        return this.removed;
+    public Set<MatchedFilter<T, K>> getRemovedFilters() {
+        return this.removedFilters;
     }
 
     /**
-     * The operator conjugating the {@link MatchedFilter}s.
+     * The {@link MatchedFilter}s currently set in the {@link FilterBar}.
+     *
+     * @return The {@link MatchedFilter}s, never null, might be empty if none are set
+     */
+    public Set<MatchedFilter<T, K>> getCurrentFilters() {
+        return currentFilters;
+    }
+
+    /**
+     * The previous operator combining the {@link MatchedFilter}s.
      *
      * @return The operator, never null
      */
-    public MatchedFilterOperator getOperator() {
-        return operator;
+    public MatchedFilterOperator getPreviousOperator() {
+        return previousOperator;
+    }
+
+    /**
+     * The previous operator combining the {@link MatchedFilter}s.
+     *
+     * @return The operator, never null
+     */
+    public MatchedFilterOperator getCurrentOperator() {
+        return currentOperator;
     }
 }

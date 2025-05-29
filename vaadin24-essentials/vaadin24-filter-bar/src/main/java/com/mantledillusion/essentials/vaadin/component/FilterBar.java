@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.util.function.*;
+import java.util.stream.Collectors;
 
 /**
  * Component for building the most complex filter constellations on-the-fly in the UI.
@@ -150,9 +151,9 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         this.filterClearButton.setVisible(false);
         this.filterClearButton.getStyle().set("margin-left", "5px");
         this.filterClearButton.addClickListener(event -> {
-            List<MatchedFilter<T, K>> filters = List.copyOf(this.filters.keySet());
-            filters.forEach(this::removeFilter);
-            notify(Collections.emptyList(), filters, event.isFromClient());
+            Set<MatchedFilter<T, K>> removed = Set.copyOf(this.filters.keySet());
+            removed.forEach(this::removeFilter);
+            notify(Collections.emptySet(), removed, this.filterOperator, event.isFromClient());
         });
         functionLayout.add(this.filterClearButton);
 
@@ -188,9 +189,9 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
             button.getStyle().set("margin-left", "1em");
             button.getStyle().set("margin-bottom", "5px");
             button.addClickListener(event -> {
-                var filter = new MatchedFilter<>(term, example.getKeywords());
-                addFilter(filter);
-                notify(Collections.singletonList(filter), Collections.emptyList(), event.isFromClient());
+                var added = new MatchedFilter<>(term, example.getKeywords());
+                var removed = add(added);
+                notify(Collections.singleton(added), removed, this.filterOperator, event.isFromClient());
                 matchedFilterPopover.close();
             });
             layout.add(button);
@@ -233,9 +234,9 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
             button.getStyle().set("margin-left", "1em");
             button.getStyle().set("margin-bottom", "5px");
             button.addClickListener(event -> {
-                var filter = new MatchedFilter<>(term, keywords);
-                addFilter(filter);
-                notify(Collections.singletonList(filter), Collections.emptyList(), event.isFromClient());
+                var added = new MatchedFilter<>(term, keywords);
+                var removed = add(added);
+                notify(Collections.singleton(added), removed, this.filterOperator, event.isFromClient());
                 this.filterInput.setValue(this.filterInput.getEmptyValue());
             });
             termLayout.add(button);
@@ -275,18 +276,19 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     }
 
     private void updateOperator(MatchedFilterOperator operator, boolean isFromClient) {
+        var previousOperator = this.filterOperator;
         this.filterOperator = operator;
         this.filterOperatorButton.setIcon(operator == MatchedFilterOperator.AND
                 ? VaadinIcon.LINK.create()
                 : VaadinIcon.UNLINK.create());
 
         if (!this.filters.isEmpty()) {
-            notify(Collections.emptyList(), Collections.emptyList(), isFromClient);
+            notify(Collections.emptySet(), Collections.emptySet(), previousOperator, isFromClient);
         }
     }
 
-    private void notify(List<MatchedFilter<T, K>> added, List<MatchedFilter<T, K>> removed, boolean isFromClient) {
-        fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, added, removed, this.filterOperator));
+    private void notify(Set<MatchedFilter<T, K>> addedFilters, Set<MatchedFilter<T, K>> removedFilters, MatchedFilterOperator previousOperator, boolean isFromClient) {
+        fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, addedFilters, removedFilters, getFilters(), previousOperator, this.filterOperator));
     }
 
     /**
@@ -300,6 +302,9 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
 
     /**
      * Adds a new {@link MatchedFilter} using the given term and keywords.
+     * <p>
+     * Any already added filters will be evaluated with {@link MatchedTerm#isCombinable(Map, MatchedFilter)} for their
+     * combinability with the new filter and removed if they are not.
      *
      * @param term The term of the filter; might <b>not</b> be null.
      * @param keywords The keywords of the filter; might <b>not</b> be null.
@@ -312,19 +317,22 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
             throw new IllegalArgumentException("Cannot add a filter with null keywords");
         }
 
-        var filter = new MatchedFilter<>(term, keywords.getKeywords());
-        addFilter(filter);
-        notify(Collections.singletonList(filter), Collections.emptyList(), false);
-        return filter;
+        var added = new MatchedFilter<>(term, keywords.getKeywords());
+        var removed = add(added);
+        notify(Collections.singleton(added), removed, this.filterOperator, false);
+        return added;
     }
 
-    private void addFilter(MatchedFilter<T, K> filter) {
+    private Set<MatchedFilter<T, K>> add(MatchedFilter<T, K> filter) {
+        var removed = removeFilters(other -> !filter.getTerm().isCombinable(filter.getKeywordInputs(), other)
+                || !other.getTerm().isCombinable(other.getKeywordInputs(), filter));
+
         var label = renderKeywords(filter.getKeywordInputs());
 
         var button = buildFilterButton(VaadinIcon.CLOSE_SMALL, label);
         button.addClickListener(event -> {
             removeFilter(filter);
-            notify(Collections.emptyList(), Collections.singletonList(filter), event.isFromClient());
+            notify(Collections.emptySet(), Collections.singleton(filter), this.filterOperator, event.isFromClient());
         });
 
         this.filters.put(filter, button);
@@ -333,6 +341,8 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         this.filterClearButton.setVisible(this.filters.size() > 1);
         this.filterScrollLeftButton.setVisible(!this.filters.isEmpty());
         this.filterScrollRightButton.setVisible(!this.filters.isEmpty());
+
+        return removed;
     }
 
     /**
@@ -341,6 +351,11 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
      * @param filter The filter to remove; might <b>not</b> be null or unknown.
      */
     public void removeFilter(MatchedFilter<T, K> filter) {
+        remove(filter);
+        notify(Collections.emptySet(), Collections.singleton(filter), this.filterOperator, false);
+    }
+
+    private void remove(MatchedFilter<T, K> filter) {
         if (filter == null) {
             throw new IllegalArgumentException("Cannot remove a null filter");
         } else if (!this.filters.containsKey(filter)) {
@@ -359,36 +374,51 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
      * Removes all filters of the given term.
      *
      * @param term The term whose filters to remove; might <b>not</b> be null.
+     * @return A set of all filters removed, never null
      */
-    public void removeFilters(T term) {
+    public Set<MatchedFilter<T, K>> removeFilters(T term) {
         if (term == null) {
             throw new IllegalArgumentException("Cannot remove filters with a null term");
         }
 
-        removeFilters(filter -> Objects.equals(filter.getTerm(), term));
+        return removeFilters(filter -> Objects.equals(filter.getTerm(), term));
     }
 
     /**
      * Removes all filters matching the given predictae.
      *
      * @param predicate The predicate to match; might <b>not</b> be null.
+     * @return A set of all filters removed, never null
      */
-    public void removeFilters(Predicate<MatchedFilter<T, K>> predicate) {
+    public Set<MatchedFilter<T, K>> removeFilters(Predicate<MatchedFilter<T, K>> predicate) {
         if (predicate == null) {
             throw new IllegalArgumentException("Cannot remove filters using a null predicate");
         }
 
-        this.filters.keySet().stream()
-                .filter(predicate)
-                .toList()
-                .forEach(this::removeFilter);
+        var removed = remove(predicate);
+
+        notify(Collections.emptySet(), removed, this.filterOperator, false);
+
+        return removed;
     }
 
     /**
      * Removes all filters.
+     *
+     * @return A set of all filters removed, never null
      */
-    public void clearFilters() {
-        removeFilters(filter -> true);
+    public Set<MatchedFilter<T, K>> clearFilters() {
+        return removeFilters(filter -> true);
+    }
+
+    private Set<MatchedFilter<T, K>> remove(Predicate<MatchedFilter<T, K>> predicate) {
+        var removed = this.filters.keySet().stream()
+                .filter(predicate)
+                .collect(Collectors.toUnmodifiableSet());
+
+        removed.forEach(this::remove);
+
+        return removed;
     }
 
     /**
@@ -475,7 +505,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     }
 
     /**
-     * Returns the logic operator conjugating the current filters.
+     * Returns the logic operator combining the current filters.
      *
      * @return The operator, never null
      */
@@ -484,7 +514,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     }
 
     /**
-     * Sets the operator conjugating the current filters.
+     * Sets the operator combining the current filters.
      * <p>
      * Triggers a {@link MatchedFilterChangedEvent} if there currently are filters.
      *
