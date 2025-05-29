@@ -90,6 +90,18 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         this.filterInput.setWidthFull();
         this.filterInput.setPrefixComponent(VaadinIcon.SEARCH.create());
         this.filterInput.setValueChangeMode(ValueChangeMode.LAZY);
+        this.filterInput.addKeyDownListener(Key.ARROW_DOWN, event -> {
+            // STREAM CHILDREN OF MATCHED FILTER LAYOUT
+            matchedFilterLayout.getChildren()
+                    // STREAM CHILDREN OF TERM LAYOUTS
+                    .flatMap(Component::getChildren)
+                    // FIND FIRST FILTER BUTTON
+                    .filter(Button.class::isInstance)
+                    .findFirst()
+                    // FOCUS BUTTON
+                    .map(Focusable.class::cast)
+                    .ifPresent(Focusable::focus);
+        });
         this.filterInput.addValueChangeListener(event -> {
             matchedFilterLayout.removeAll();
 
@@ -185,9 +197,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         var layout = buildTermLayout(term);
 
         for (KeywordMatch<K> example: Optional.ofNullable(term.getFavorites()).orElseGet(Collections::emptyList)) {
-            var button = buildFilterButton(VaadinIcon.PLUS, renderKeywords(example.getKeywords()));
-            button.getStyle().set("margin-left", "1em");
-            button.getStyle().set("margin-bottom", "5px");
+            var button = buildKeywordMatchButton(VaadinIcon.PLUS, renderKeywords(example.getKeywords()));
             button.addClickListener(event -> {
                 var added = new MatchedFilter<>(term, example.getKeywords());
                 var removed = add(added);
@@ -198,9 +208,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         }
 
         for (KeywordMatch<K> example: Optional.ofNullable(term.getExamples()).orElseGet(Collections::emptyList)) {
-            var button = buildFilterButton(VaadinIcon.CHECK, renderKeywords(example.getKeywords()));
-            button.getStyle().set("margin-left", "1em");
-            button.getStyle().set("margin-bottom", "5px");
+            var button = buildKeywordMatchButton(VaadinIcon.CHECK, renderKeywords(example.getKeywords()));
             button.setEnabled(false);
             layout.add(button);
         }
@@ -215,9 +223,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         addKeywordMatchButtons(layout, term, keywordSets.subList(0, Math.min(keywordSets.size(), threshold)));
 
         if (term.displayThreshold() < keywordSets.size()) {
-            var button = buildFilterButton(VaadinIcon.LEVEL_DOWN, this.thresholdRenderer.apply(keywordSets.size()-threshold));
-            button.getStyle().set("margin-left", "1em");
-            button.getStyle().set("margin-bottom", "5px");
+            var button = buildKeywordMatchButton(VaadinIcon.LEVEL_DOWN, this.thresholdRenderer.apply(keywordSets.size()-threshold));
             button.addClickListener(event -> {
                 layout.remove(button);
                 addKeywordMatchButtons(layout, term, keywordSets.subList(threshold, keywordSets.size()));
@@ -230,9 +236,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
 
     private void addKeywordMatchButtons(VerticalLayout termLayout, T term, List<LinkedHashMap<K, String>> keywordSets) {
         for (var keywords: keywordSets) {
-            var button = buildFilterButton(VaadinIcon.PLUS, renderKeywords(keywords));
-            button.getStyle().set("margin-left", "1em");
-            button.getStyle().set("margin-bottom", "5px");
+            var button = buildKeywordMatchButton(VaadinIcon.PLUS, renderKeywords(keywords));
             button.addClickListener(event -> {
                 var added = new MatchedFilter<>(term, keywords);
                 var removed = add(added);
@@ -241,6 +245,13 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
             });
             termLayout.add(button);
         }
+    }
+
+    private Button buildKeywordMatchButton(VaadinIcon icon, String label) {
+        var button = buildFilterButton(icon, label);
+        button.getStyle().set("margin-left", "1em");
+        button.getStyle().set("margin-bottom", "5px");
+        return button;
     }
 
     private VerticalLayout buildTermLayout(T term) {
