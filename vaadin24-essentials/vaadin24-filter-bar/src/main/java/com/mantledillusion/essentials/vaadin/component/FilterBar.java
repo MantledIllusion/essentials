@@ -153,6 +153,9 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         this.filterLayout.getStyle().set("margin-left", "5px");
         this.filterLayout.getStyle().set("overflow-x", "auto");
         this.filterLayout.getStyle().set("scrollbar-width", "none");
+        this.filterLayout.getStyle().set("background-size", "10px 10px");
+        this.filterLayout.getStyle().set("background-position", "0px 0px, 5px 5px");
+        this.filterLayout.getStyle().set("background-image", "radial-gradient(rgba(128, 128, 128, 0.1) 2px, transparent 0px), radial-gradient(rgba(128, 128, 128, 0.1) 2px, transparent 0px)");
 
         this.filterOperatorButton = buildFilterButton(VaadinIcon.LINK, null);
         this.filterOperatorButton.addClickListener(event -> {
