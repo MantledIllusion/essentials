@@ -199,7 +199,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         var layout = buildTermLayout(term);
 
         for (KeywordMatch<K> example: Optional.ofNullable(term.getFavorites()).orElseGet(Collections::emptyList)) {
-            var button = buildKeywordMatchButton(VaadinIcon.PLUS, renderKeywords(example.getKeywords()));
+            var button = buildKeywordMatchButton(VaadinIcon.STAR, renderKeywords(example.getKeywords()));
             button.addClickListener(event -> {
                 var added = new MatchedFilter<>(term, example.getKeywords());
                 var removed = add(added);
