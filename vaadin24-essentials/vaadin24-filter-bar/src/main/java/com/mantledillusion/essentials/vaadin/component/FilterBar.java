@@ -36,6 +36,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     private final VerticalLayout mainLayout;
     private final TextField filterInput;
     private final Button filterInputClearButton;
+    private final HorizontalLayout functionLayout;
     private final HorizontalLayout filterLayout;
     private final Button filterOperatorButton;
     private final Button filterClearButton;
@@ -133,13 +134,14 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
             this.filterInput.focus();
         });
 
-        var functionLayout = new HorizontalLayout();
-        functionLayout.setWidthFull();
-        functionLayout.setHeight(null);
-        functionLayout.setMargin(false);
-        functionLayout.setPadding(false);
-        functionLayout.setSpacing(false);
-        functionLayout.getStyle().set("margin-top", "5px");
+        this.functionLayout = new HorizontalLayout();
+        this.functionLayout.setWidthFull();
+        this.functionLayout.setHeight(null);
+        this.functionLayout.setMargin(false);
+        this.functionLayout.setPadding(false);
+        this.functionLayout.setSpacing(false);
+        this.functionLayout.setVisible(false);
+        this.functionLayout.getStyle().set("margin-top", "5px");
         this.mainLayout.add(functionLayout);
 
         this.filterLayout = new HorizontalLayout();
@@ -153,11 +155,10 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         this.filterLayout.getStyle().set("scrollbar-width", "none");
 
         this.filterOperatorButton = buildFilterButton(VaadinIcon.LINK, null);
-        this.filterOperatorButton.setVisible(false);
         this.filterOperatorButton.addClickListener(event -> {
             updateOperator(this.filterOperator == MatchedFilterOperator.AND ? MatchedFilterOperator.OR : MatchedFilterOperator.AND, event.isFromClient());
         });
-        functionLayout.add(this.filterOperatorButton);
+        this.functionLayout.add(this.filterOperatorButton);
 
         this.filterClearButton = buildFilterButton(VaadinIcon.CLOSE_SMALL, null);
         this.filterClearButton.setVisible(false);
@@ -167,25 +168,23 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
             removed.forEach(this::removeFilter);
             notify(Collections.emptySet(), removed, this.filterOperator, event.isFromClient());
         });
-        functionLayout.add(this.filterClearButton);
+        this.functionLayout.add(this.filterClearButton);
 
         this.filterScrollLeftButton = buildFilterButton(VaadinIcon.ANGLE_LEFT, null);
-        this.filterScrollLeftButton.setVisible(false);
         this.filterScrollLeftButton.getStyle().set("margin-left", "5px");
         this.filterScrollLeftButton.addClickListener(event -> {
             this.filterLayout.getElement().executeJs("this.scrollBy(-"+this.filterScrollDistance+", 0);");
         });
-        functionLayout.add(this.filterScrollLeftButton);
+        this.functionLayout.add(this.filterScrollLeftButton);
 
-        functionLayout.add(this.filterLayout);
+        this.functionLayout.add(this.filterLayout);
 
         this.filterScrollRightButton = buildFilterButton(VaadinIcon.ANGLE_RIGHT, null);
-        this.filterScrollRightButton.setVisible(false);
         this.filterScrollRightButton.getStyle().set("margin-left", "5px");
         this.filterScrollRightButton.addClickListener(event -> {
             this.filterLayout.getElement().executeJs("this.scrollBy("+this.filterScrollDistance+", 0);");
         });
-        functionLayout.add(this.filterScrollRightButton);
+        this.functionLayout.add(this.filterScrollRightButton);
     }
 
     @Override
@@ -298,6 +297,11 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         }
     }
 
+    private void updateFunctionVisibility() {
+        this.functionLayout.setVisible(!this.filters.isEmpty());
+        this.filterClearButton.setVisible(this.filters.size() > 1);
+    }
+
     private void notify(Set<MatchedFilter<T, K>> addedFilters, Set<MatchedFilter<T, K>> removedFilters, MatchedFilterOperator previousOperator, boolean isFromClient) {
         fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, addedFilters, removedFilters, getFilters(), previousOperator, this.filterOperator));
     }
@@ -348,10 +352,8 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
 
         this.filters.put(filter, button);
         this.filterLayout.add(button);
-        this.filterOperatorButton.setVisible(!this.filters.isEmpty());
-        this.filterClearButton.setVisible(this.filters.size() > 1);
-        this.filterScrollLeftButton.setVisible(!this.filters.isEmpty());
-        this.filterScrollRightButton.setVisible(!this.filters.isEmpty());
+
+        updateFunctionVisibility();
 
         return removed;
     }
@@ -375,10 +377,8 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
 
         this.filterLayout.remove(this.filters.get(filter));
         this.filters.remove(filter);
-        this.filterOperatorButton.setVisible(!this.filters.isEmpty());
-        this.filterClearButton.setVisible(this.filters.size() > 1);
-        this.filterScrollLeftButton.setVisible(!this.filters.isEmpty());
-        this.filterScrollRightButton.setVisible(!this.filters.isEmpty());
+
+        updateFunctionVisibility();
     }
 
     /**
