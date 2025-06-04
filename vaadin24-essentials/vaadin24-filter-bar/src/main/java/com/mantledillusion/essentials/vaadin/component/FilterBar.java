@@ -50,6 +50,15 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     private IntFunction<String> thresholdRenderer = count -> "+"+count;
 
     /**
+     * Default constructor.
+     * <p>
+     * Initializes the {@link FilterBar} with an empty {@link TermAnalyzer}.
+     */
+    public FilterBar() {
+        this(new TermAnalyzer<>());
+    }
+
+    /**
      * Advanced constructor.
      *
      * @param analyzer The {@link TermAnalyzer} to use; might <b>not</b> be null;
