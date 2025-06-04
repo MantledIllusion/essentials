@@ -80,10 +80,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         matchedFilterPopover.setPosition(PopoverPosition.BOTTOM_START);
         matchedFilterPopover.addThemeVariants(PopoverVariant.ARROW);
 
-        var matchedFilterExamples = this.analyzer.getTerms().stream()
-                .map(term -> this.buildTermExampleLayout(term, matchedFilterPopover))
-                .peek(matchedFilterLayout::add)
-                .toList();
+        var matchedFilterExamples = new HashMap<T, VerticalLayout>();
 
         this.filterInputClearButton = buildFilterButton(VaadinIcon.TRASH, null);
 
@@ -107,7 +104,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
             matchedFilterLayout.removeAll();
 
             if (StringUtils.isEmpty(event.getValue())) {
-                matchedFilterExamples.forEach(matchedFilterLayout::add);
+                matchedFilterExamples.values().forEach(matchedFilterLayout::add);
             } else {
                  FilterBar.this.analyzer.analyze(event.getValue())
                         .entrySet().stream()
@@ -127,6 +124,21 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         });
         this.mainLayout.add(this.filterInput);
         matchedFilterPopover.setTarget(this.filterInput);
+
+        this.analyzer.addListener((term, keywordAnalyzer, added) -> {
+            if (added) {
+                var exampleLayout = this.buildTermExampleLayout(term, matchedFilterPopover);
+                matchedFilterExamples.put(term, exampleLayout);
+                if (this.filterInput.isEmpty()) {
+                    matchedFilterLayout.add(exampleLayout);
+                }
+            } else {
+                var exampleLayout = matchedFilterExamples.remove(term);
+                if (this.filterInput.isEmpty()) {
+                    matchedFilterLayout.remove(exampleLayout);
+                }
+            }
+        });
 
         this.filterInputClearButton.addClickListener(evt -> {
             this.filterInput.setValue(this.filterInput.getEmptyValue());
@@ -307,6 +319,15 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
 
     private void notify(Set<MatchedFilter<T, K>> addedFilters, Set<MatchedFilter<T, K>> removedFilters, MatchedFilterOperator previousOperator, boolean isFromClient) {
         fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, addedFilters, removedFilters, getFilters(), previousOperator, this.filterOperator));
+    }
+
+    /**
+     * Returns the used {@link TermAnalyzer}.
+     *
+     * @return The analyzer, never null
+     */
+    public TermAnalyzer<T, K> getAnalyzer() {
+        return analyzer;
     }
 
     /**
