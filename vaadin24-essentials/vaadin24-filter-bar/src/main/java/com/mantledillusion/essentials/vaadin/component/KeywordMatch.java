@@ -1,8 +1,7 @@
 package com.mantledillusion.essentials.vaadin.component;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Function;
 
 /**
  * A map of matching keyword segments to a term.
@@ -58,5 +57,33 @@ public class KeywordMatch<K extends MatchedKeyword> {
      */
     public static <K extends MatchedKeyword> KeywordMatch<K> ofKeyword(K keyword, String segment) {
         return new KeywordMatch<K>(Collections.emptyMap()).andKeyword(keyword, segment);
+    }
+
+    /**
+     * Returns a list of matches with the given keywords.
+     *
+     * @param <K> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
+     * @param keyword The keyword matching a segment of a term; might <b>not</b> be null.
+     * @param segments The segments matched by the keyword; might <b>not</b> be null.
+     * @return A new list of {@link KeywordMatch} instances
+     */
+    public static <K extends MatchedKeyword> List<KeywordMatch<K>> ofKeywords(K keyword, String... segments) {
+        return ofKeywords(keyword, segment -> segment, segments);
+    }
+
+    /**
+     * Returns a list of matches with the given keywords.
+     *
+     * @param <K> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
+     * @param keyword The keyword matching a segment of a term; might <b>not</b> be null.
+     * @param segments The segments matched by the keyword; might <b>not</b> be null.
+     * @return A new list of {@link KeywordMatch} instances
+     */
+    @SafeVarargs
+    public static <K extends MatchedKeyword, S> List<KeywordMatch<K>> ofKeywords(K keyword, Function<S, String> mapper, S... segments) {
+        return Arrays.stream(segments)
+                .map(mapper)
+                .map(segment -> new KeywordMatch<K>(Collections.emptyMap()).andKeyword(keyword, segment))
+                .toList();
     }
 }
