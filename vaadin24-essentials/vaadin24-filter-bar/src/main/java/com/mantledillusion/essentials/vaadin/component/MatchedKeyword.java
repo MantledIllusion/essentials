@@ -9,6 +9,15 @@ import com.mantledillusion.data.collo.Keyword;
 public interface MatchedKeyword extends Keyword {
 
     /**
+     * Returns a displayable label for this keyword.
+     *
+     * @return a label, never null
+     */
+    default String getLabel() {
+        return toString();
+    }
+
+    /**
      * Validates the given input.
      *
      * @param input The input; might <b>not</b> be null.

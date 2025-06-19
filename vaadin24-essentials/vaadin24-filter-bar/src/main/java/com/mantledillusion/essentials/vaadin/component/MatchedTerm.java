@@ -11,6 +11,15 @@ import java.util.Map;
 public interface MatchedTerm<K extends MatchedKeyword> extends Term<K> {
 
     /**
+     * Returns a displayable label for this term.
+     *
+     * @return a label, never null
+     */
+    default String getLabel() {
+        return toString();
+    }
+
+    /**
      * Returns an ordered list of matches serving as clickable favorites to the term.
      *
      * @return A list of {@link KeywordMatch}es, might be null

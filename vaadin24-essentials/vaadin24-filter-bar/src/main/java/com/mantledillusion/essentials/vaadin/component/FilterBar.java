@@ -45,8 +45,8 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
 
     private MatchedFilterOperator filterOperator = MatchedFilterOperator.AND;
     private int filterScrollDistance = 50;
-    private Function<T, String> termRenderer = String::valueOf;
-    private Function<K, String> keywordRenderer = String::valueOf;
+    private Function<T, String> termLabelRenderer = MatchedTerm::getLabel;
+    private Function<K, String> keywordLabelRenderer = MatchedKeyword::getLabel;
     private IntFunction<String> thresholdRenderer = count -> "+"+count;
 
     /**
@@ -285,7 +285,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
         layout.setPadding(false);
         layout.setSpacing(false);
 
-        var termLabel = new NativeLabel(this.termRenderer.apply(term));
+        var termLabel = new NativeLabel(this.termLabelRenderer.apply(term));
         termLabel.setWidth(null);
         termLabel.getStyle().set("font-weight", "bold");
         termLabel.getStyle().set("color", "var(--lumo-contrast-50pct)");
@@ -304,7 +304,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
 
     private String renderKeywords(Map<K, String> keywords) {
         return keywords.entrySet().stream()
-                .map(entry -> this.keywordRenderer.apply(entry.getKey()) + ": " + entry.getValue())
+                .map(entry -> this.keywordLabelRenderer.apply(entry.getKey()) + ": " + entry.getValue())
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("");
     }
@@ -484,45 +484,45 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     }
 
     /**
-     * Returns the currently used renderer for displaying terms.
+     * Returns the currently used renderer for displaying term labels.
      *
      * @return The renderer, never null
      */
     public Function<T, String> getTermLabelRenderer() {
-        return this.termRenderer;
+        return this.termLabelRenderer;
     }
 
     /**
-     * Sets the render for displaying terms.
+     * Sets the render for displaying term labels.
      *
      * @param termRenderer The renderer; might <b>not</b> be null.
      */
     public void setTermLabelRenderer(Function<T, String> termRenderer) {
         if (termRenderer == null) {
-            throw new IllegalArgumentException("Cannot render terms using a null renderer");
+            throw new IllegalArgumentException("Cannot render term labels using a null renderer");
         }
-        this.termRenderer = termRenderer;
+        this.termLabelRenderer = termRenderer;
     }
 
     /**
-     * Returns the currently used renderer for displaying keywords.
+     * Returns the currently used renderer for displaying keyword labels.
      *
      * @return The renderer, never null
      */
     public Function<K, String> getKeywordLabelRenderer() {
-        return keywordRenderer;
+        return keywordLabelRenderer;
     }
 
     /**
-     * Sets the render for displaying keywords.
+     * Sets the render for displaying keyword labels.
      *
      * @param keywordRenderer The renderer; might <b>not</b> be null.
      */
     public void setKeywordLabelRenderer(Function<K, String> keywordRenderer) {
         if (keywordRenderer == null) {
-            throw new IllegalArgumentException("Cannot render keywords using a null renderer");
+            throw new IllegalArgumentException("Cannot render keyword labels using a null renderer");
         }
-        this.keywordRenderer = keywordRenderer;
+        this.keywordLabelRenderer = keywordRenderer;
     }
 
     /**
