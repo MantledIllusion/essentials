@@ -5,26 +5,19 @@
 	<parent>
 		<groupId>com.mantledillusion.essentials</groupId>
 		<artifactId>vaadin24-essentials-parent</artifactId>
-		<version>1.0.0</version>
+		<version>1.1.0-SNAPSHOT</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	
-	<artifactId>vaadin24-filter-bar</artifactId>
-	<version>4.0.0-SNAPSHOT</version>
+	<artifactId>vaadin24-breadcrumb</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	
-	<name>Vaadin 24 Filter Bar</name>
-	<description>The FilterBar component for Vaadin 24 allows simplified in-UI building of even the most complex filter constellations.</description>
+	<name>Vaadin 24 Breadcrumb</name>
+	<description>The Breadcrumb component for Vaadin 24 offers complex navigation overview while maintaining a low vertical space profile.</description>
 	<url>http://www.mantledillusion.com</url>
 
 	<dependencies>
-		<!-- MantledIllusion Dependencies -->
-		<dependency>
-			<groupId>com.mantledillusion.data</groupId>
-			<artifactId>collo</artifactId>
-			<version>2.0.0-SNAPSHOT</version>
-		</dependency>
-
 		<!-- Vaadin Dependencies -->
 		<dependency>
 			<groupId>com.vaadin</groupId>
@@ -40,15 +33,11 @@
 		</dependency>
 		<dependency>
 			<groupId>com.vaadin</groupId>
+			<artifactId>vaadin-menu-bar-flow</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.vaadin</groupId>
 			<artifactId>vaadin-button-flow</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.vaadin</groupId>
-			<artifactId>vaadin-popover-flow</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.vaadin</groupId>
-			<artifactId>vaadin-text-field-flow</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.vaadin</groupId>

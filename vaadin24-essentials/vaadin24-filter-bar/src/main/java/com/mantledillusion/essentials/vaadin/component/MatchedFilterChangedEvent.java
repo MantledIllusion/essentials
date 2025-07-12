@@ -2,42 +2,75 @@ package com.mantledillusion.essentials.vaadin.component;
 
 import com.vaadin.flow.component.ComponentEvent;
 
-import java.util.List;
+import java.util.Set;
 
 /**
  * {@link ComponentEvent} fired when there is at least one {@link MatchedFilter} added or removed from its {@link FilterBar}.
  *
- * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
- *           (for example a name, an address, a specific ID, ...).
- * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
- *           the input groups (a first name, a last name, a company name, a zip code, ...).
+ * @param <T> The {@link MatchedTerm} representing the terms (for example a name, an address, a specific ID, ...)
+ * @param <K> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
  */
-public final class MatchedFilterChangedEvent<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> extends ComponentEvent<FilterBar<G, P>> {
+public final class MatchedFilterChangedEvent<T extends MatchedTerm<K>, K extends MatchedKeyword> extends ComponentEvent<FilterBar<T, K>> {
 
-    private final List<MatchedFilter<G, P>> added;
-    private final List<MatchedFilter<G, P>> removed;
+    private final Set<MatchedFilter<T, K>> addedFilters;
+    private final Set<MatchedFilter<T, K>> removedFilters;
+    private final Set<MatchedFilter<T, K>> currentFilters;
+    private final MatchedFilterOperator previousOperator;
+    private final MatchedFilterOperator currentOperator;
 
-    MatchedFilterChangedEvent(FilterBar<G, P> source, boolean fromClient, List<MatchedFilter<G, P>> added, List<MatchedFilter<G, P>> removed) {
+    MatchedFilterChangedEvent(FilterBar<T, K> source, boolean fromClient,
+                              Set<MatchedFilter<T, K>> addedFilters, Set<MatchedFilter<T, K>> removedFilters, Set<MatchedFilter<T, K>> currentFilters,
+                              MatchedFilterOperator previousOperator, MatchedFilterOperator currentOperator) {
         super(source, fromClient);
-        this.added = added;
-        this.removed = removed;
+        this.currentFilters = currentFilters;
+        this.addedFilters = addedFilters;
+        this.removedFilters = removedFilters;
+        this.previousOperator = previousOperator;
+        this.currentOperator = currentOperator;
     }
 
     /**
      * The {@link MatchedFilter}s added to the {@link FilterBar}.
      *
-     * @return The {@link MatchedFilter}s, never null
+     * @return The {@link MatchedFilter}s, never null, might be empty if none was added
      */
-    public List<MatchedFilter<G, P>> getAdded() {
-        return this.added;
+    public Set<MatchedFilter<T, K>> getAddedFilters() {
+        return this.addedFilters;
     }
 
     /**
      * The {@link MatchedFilter}s removed from the {@link FilterBar}.
      *
-     * @return The {@link MatchedFilter}s, never null
+     * @return The {@link MatchedFilter}s, never null, might be empty if none was removed
      */
-    public List<MatchedFilter<G, P>> getRemoved() {
-        return this.removed;
+    public Set<MatchedFilter<T, K>> getRemovedFilters() {
+        return this.removedFilters;
+    }
+
+    /**
+     * The {@link MatchedFilter}s currently set in the {@link FilterBar}.
+     *
+     * @return The {@link MatchedFilter}s, never null, might be empty if none are set
+     */
+    public Set<MatchedFilter<T, K>> getCurrentFilters() {
+        return currentFilters;
+    }
+
+    /**
+     * The previous operator combining the {@link MatchedFilter}s.
+     *
+     * @return The operator, never null
+     */
+    public MatchedFilterOperator getPreviousOperator() {
+        return previousOperator;
+    }
+
+    /**
+     * The previous operator combining the {@link MatchedFilter}s.
+     *
+     * @return The operator, never null
+     */
+    public MatchedFilterOperator getCurrentOperator() {
+        return currentOperator;
     }
 }

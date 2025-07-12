@@ -1,348 +1,69 @@
 package com.mantledillusion.essentials.vaadin.component;
 
-import com.mantledillusion.data.collo.InputAnalyzer;
+import com.mantledillusion.data.collo.TermAnalyzer;
 import com.vaadin.flow.component.*;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.contextmenu.SubMenu;
-import com.vaadin.flow.component.html.Label;
+import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.menubar.MenuBar;
-import com.vaadin.flow.component.menubar.MenuBarVariant;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.provider.CallbackDataProvider;
-import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.component.popover.Popover;
+import com.vaadin.flow.component.popover.PopoverPosition;
+import com.vaadin.flow.component.popover.PopoverVariant;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.shared.Registration;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.function.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Component for building the most complex filter constellations on-the-fly in the UI.
  * <p>
- * Uses Collo's {@link InputAnalyzer} for realtime input categorization.
+ * Uses Collo's {@link TermAnalyzer} for realtime input recognition.
  *
- * @param <G> The {@link MatchedFilterInputGroup} implementing {@link Enum} representing the input groups
- *           (for example a name, an address, a specific ID, ...).
- * @param <P> The ({@link MatchedFilterInputPart} implementing) {@link Enum} representing the distinguishable parts of
- *           the input groups (a first name, a last name, a company name, a zip code, ...).
+ * @param <T> The {@link MatchedTerm} representing the terms (for example a name, an address, a specific ID, ...)
+ * @param <K> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
  */
-public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends Enum<P> & MatchedFilterInputPart> extends Composite<Component> implements HasSize {
+public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> extends Composite<Component> implements HasSize {
 
-    private class MatchedFilterQuery {
-
-        private final List<MatchedFilter<G, P>> matches;
-
-        private MatchedFilterQuery(String term) {
-            this.matches = FilterBar.this.analyzer.analyze(term).entrySet().stream()
-                    .flatMap(entry -> entry.getValue().stream()
-                            .map(parts -> new MatchedFilter<>(term, entry.getKey(), parts)))
-                    .sorted((f1, f2) -> f1.getGroupPriority() == f2.getGroupPriority()
-                            ? Long.compare(f1.getPartPriority(), f2.getPartPriority())
-                            : Long.compare(f1.getGroupPriority(), f2.getGroupPriority()))
-                    .collect(Collectors.toList());
-
-            if (FilterBar.this.matchCountRetriever != null) {
-                if (FilterBar.this.matchCountMode == MatchCountMode.SKIP) {
-                    if (FilterBar.this.matchCountThreshold >= this.matches.size()) {
-                        count(this.matches.size());
-                    }
-                } else {
-                    count(Math.min(this.matches.size(), FilterBar.this.matchCountThreshold));
-                }
-            }
-        }
-
-        private void count(int limit) {
-            this.matches.stream().limit(limit).forEach(match -> match.setMatchCount(FilterBar.this.matchCountRetriever.apply(match)));
-        }
-
-        private int count() {
-            return this.matches.size();
-        }
-
-        private Stream<MatchedFilter<G, P>> fetch(int offset, int limit) {
-            return this.matches.stream().skip(offset).limit(limit);
-        }
-    }
-
-    private final class Favorite {
-
-        private final String label;
-        private final FilterModification modification;
-
-        private Favorite(String label, FilterModification modification) {
-            this.label = label;
-            this.modification = modification;
-        }
-    }
-
-    private final class FilterModification {
-
-        private final List<BiConsumer<List<MatchedFilter<G, P>>, List<MatchedFilter<G, P>>>> modifications = new ArrayList<>();
-
-        private void add(BiConsumer<List<MatchedFilter<G, P>>, List<MatchedFilter<G, P>>> modification) {
-            this.modifications.add(modification);
-        }
-
-        private void apply(boolean isFromClient) {
-            List<MatchedFilter<G, P>> added = new ArrayList<>();
-            List<MatchedFilter<G, P>> removed = new ArrayList<>();
-
-            this.modifications.forEach(modification -> modification.accept(added, removed));
-
-            removed.forEach(FilterBar.this::removeFilter);
-            added.forEach(FilterBar.this::addFilter);
-
-            FilterBar.this.notify(Collections.unmodifiableList(added), Collections.unmodifiableList(removed), isFromClient);
-        }
-    }
-
-    /**
-     * The modes when to assert a {@link MatchedFilter}'s count.
-     */
-    public enum MatchCountMode {
-
-        /**
-         * Retrieves the result count for the {@link MatchedFilter}s with the highest priority, capped by {@link #setMatchCountThreshold(int)}.
-         */
-        CAPPED,
-
-        /**
-         * Retrieves the result count only if there are equal or fewer {@link MatchedFilter}s than {@link #setMatchCountThreshold(int)}.
-         */
-        SKIP
-    }
-
-    public abstract class MatchedFilterBuilder<B> {
-
-        /**
-         * Builder for a single modification to a specific group of {@link MatchedFilter}s.
-         */
-        public class MatchedFilterGroupBuilder {
-
-            private final G group;
-            private final List<Predicate<Map<P, String>>> parts = new ArrayList<>();
-
-            private MatchedFilterGroupBuilder(G group) {
-                this.group = group;
-            }
-
-            /**
-             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being present.
-             *
-             * @param part The part that needs to be present in a group in order for the modification to apply; might <b>not</b> be null.
-             * @return this
-             */
-            public MatchedFilterGroupBuilder andPartPresent(P part) {
-                if (part == null) {
-                    throw new IllegalArgumentException("Cannot filter for a null part");
-                }
-                this.parts.add(parts -> parts.containsKey(part));
-                return this;
-            }
-
-            /**
-             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being absent.
-             *
-             * @param part The part that needs to be absent in a group in order for the modification to apply; might <b>not</b> be null.
-             * @return this
-             */
-            public MatchedFilterGroupBuilder andPartAbsent(P part) {
-                if (part == null) {
-                    throw new IllegalArgumentException("Cannot filter for a null part");
-                }
-                this.parts.add(parts -> !parts.containsKey(part));
-                return this;
-            }
-
-            /**
-             * Adds a {@link Predicate} for a specific {@link MatchedFilterInputPart} being present and matching the given regular expressen.
-             *
-             * @param part The part that needs to be present and matching in a group in order for the modification to apply; might <b>not</b> be null.
-             * @param regex The regex the part needs to match; might <b>not</b> be null.
-             * @return this
-             */
-            public MatchedFilterGroupBuilder andPartMatching(P part, String regex) {
-                if (part == null) {
-                    throw new IllegalArgumentException("Cannot filter for a null part");
-                } else if (regex == null) {
-                    throw new IllegalArgumentException("Cannot match against a null regex");
-                }
-                this.parts.add(parts -> parts.containsKey(part) && parts.get(part).matches(regex));
-                return this;
-            }
-
-            /**
-             * Adds {@link MatchedFilter}s for the given term.
-             * <p>
-             * From all the part sets analyzed from the given term, only such {@link MatchedFilter}s are added whose
-             * {@link MatchedFilterInputPart}s match the filters specified by:
-             * <p>
-             * - {@link #andPartPresent(Enum)}<br>
-             * - {@link #andPartAbsent(Enum)}<br>
-             * - {@link #andPartMatching(Enum, String)}<br>
-             *
-             * @param term The term to add {@link MatchedFilter}s for; might <b>not</b> be null.
-             * @return This {@link MatchedFilterGroupBuilder}'s parent {@link MatchedFilterBuilder}
-             */
-            public MatchedFilterBuilder<B> add(String term) {
-                if (term == null) {
-                    throw new IllegalArgumentException("Cannot add a filter for a null term");
-                }
-
-                MatchedFilterBuilder.this.modification.add((added, removed) -> FilterBar.this
-                        .analyzer.analyzeForGroup(term, this.group).stream()
-                        .filter(parts -> this.parts.stream().allMatch(part -> part.test(parts)))
-                        .map(parts -> new MatchedFilter<>(term, this.group, parts))
-                        .forEach(added::add));
-
-                return MatchedFilterBuilder.this;
-            }
-
-            /**
-             * Removes {@link MatchedFilter}s.
-             * <p>
-             * Only such {@link MatchedFilter}s are added whose {@link MatchedFilterInputPart}s match the filters specified by:
-             * <p>
-             * - {@link #andPartPresent(Enum)}<br>
-             * - {@link #andPartAbsent(Enum)}<br>
-             * - {@link #andPartMatching(Enum, String)}<br>
-             *
-             * @return This {@link MatchedFilterGroupBuilder}'s parent {@link MatchedFilterBuilder}
-             */
-            public MatchedFilterBuilder<B> remove() {
-                MatchedFilterBuilder.this.modification.add((added, removed) -> FilterBar.this
-                        .filters.keySet().stream()
-                        .filter(filter -> filter.getGroup() == this.group)
-                        .filter(filter -> this.parts.stream().allMatch(part -> part.test(filter.getPartMappings())))
-                        .forEach(removed::add));
-
-                return MatchedFilterBuilder.this;
-            }
-        }
-
-        private final FilterModification modification = new FilterModification();
-
-        private MatchedFilterBuilder() {}
-
-        protected FilterModification getModification() {
-            return this.modification;
-        }
-
-        /**
-         * Begins a new {@link MatchedFilterGroupBuilder} for a specific group.
-         *
-         * @param group The group to create a modification for; might <b>not</b> be null.
-         * @return A new {@link MatchedFilterGroupBuilder}, never null
-         */
-        public MatchedFilterGroupBuilder forGroup(G group) {
-            if (group == null) {
-                throw new IllegalArgumentException("Cannot begin modifying a null group");
-            }
-            return new MatchedFilterGroupBuilder(group);
-        }
-
-        /**
-         * Applies all created modifications.
-         */
-        public abstract B apply();
-    }
-
-    /**
-     * Builder for a set of add/remove modifications to the {@link FilterBar}'s current {@link MatchedFilter}s.
-     */
-    public class FilterModificationBuilder extends MatchedFilterBuilder<Void> {
-
-        private FilterModificationBuilder() {}
-
-        /**
-         * Applies all created modifications to this {@link FilterModificationBuilder}'s {@link FilterBar}.
-         */
-        @Override
-        public Void apply() {
-            getModification().apply(false);
-            return null;
-        }
-    }
-
-    /**
-     * Builder for a set of add/remove modifications to the {@link FilterBar}'s current favorites.
-     */
-    public class FavoriteModificationBuilder {
-
-        public class FavoriteSetBuilder extends MatchedFilterBuilder<FavoriteModificationBuilder> {
-
-            private final String label;
-
-            private FavoriteSetBuilder(String label) {
-                this.label = label;
-            }
-
-            @Override
-            public FavoriteModificationBuilder apply() {
-                FavoriteModificationBuilder.this.favorites.add(new Favorite(this.label, getModification()));
-                return FavoriteModificationBuilder.this;
-            }
-        }
-
-        private final List<Favorite> favorites = new ArrayList<>();
-
-        private FavoriteModificationBuilder() {
-
-        }
-
-        /**
-         * Begins adding a new favorite.
-         *
-         * @param label The label to display on the favorite; might be null.
-         * @return A new {@link FavoriteSetBuilder}, never null
-         */
-        public FavoriteSetBuilder withFavorite(String label) {
-            return new FavoriteSetBuilder(label);
-        }
-
-        /**
-         * Sets all the entered filters as favorites to the {@link FilterBar}.
-         */
-        public void set() {
-            SubMenu menu = FilterBar.this.favorites.getItems().iterator().next().getSubMenu();
-            menu.removeAll();
-
-            this.favorites.forEach(favorite -> menu.addItem(favorite.label, event -> favorite.modification.apply(event.isFromClient())));
-
-            FilterBar.this.favorites.setVisible(!this.favorites.isEmpty());
-        }
-    }
-
-    private final InputAnalyzer<G, P> analyzer;
-    private final Map<MatchedFilter<G, P>, Component> filters = new IdentityHashMap<>();
+    private final TermAnalyzer<T, K> analyzer;
+    private final Map<MatchedFilter<T, K>, Component> filters = new IdentityHashMap<>();
 
     private final VerticalLayout mainLayout;
-    private final MenuBar favorites;
-    private final ComboBox<MatchedFilter<G, P>> filterInput;
+    private final TextField filterInput;
+    private final Button filterInputClearButton;
+    private final HorizontalLayout functionLayout;
     private final HorizontalLayout filterLayout;
+    private final Button filterOperatorButton;
+    private final Button filterClearButton;
+    private final Button filterScrollLeftButton;
+    private final Button filterScrollRightButton;
 
-    private Function<G, String> groupRenderer = String::valueOf;
-    private Function<P, String> partRenderer = String::valueOf;
+    private MatchedFilterOperator filterOperator = MatchedFilterOperator.AND;
+    private int filterScrollDistance = 50;
+    private Function<T, String> termLabelRenderer = MatchedTerm::getLabel;
+    private Function<K, String> keywordLabelRenderer = MatchedKeyword::getLabel;
+    private IntFunction<String> thresholdRenderer = count -> "+"+count;
 
-    private Function<MatchedFilter<G, P>, Long> matchCountRetriever = null;
-    private MatchCountMode matchCountMode = MatchCountMode.CAPPED;
-    private Integer matchCountThreshold = Integer.MAX_VALUE;
+    /**
+     * Default constructor.
+     * <p>
+     * Initializes the {@link FilterBar} with an empty {@link TermAnalyzer}.
+     */
+    public FilterBar() {
+        this(new TermAnalyzer<>());
+    }
 
     /**
      * Advanced constructor.
      *
-     * @param analyzer The {@link InputAnalyzer} to use; might <b>not</b> be null;
+     * @param analyzer The {@link TermAnalyzer} to use; might <b>not</b> be null;
      */
-    public FilterBar(InputAnalyzer<G, P> analyzer) {
+    public FilterBar(TermAnalyzer<T, K> analyzer) {
         if (analyzer == null) {
             throw new IllegalArgumentException("Cannot operate on a null analyzer");
         }
@@ -356,56 +77,138 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         this.mainLayout.setPadding(false);
         this.mainLayout.setSpacing(false);
 
-        HorizontalLayout functionLayout = new HorizontalLayout();
-        functionLayout.setWidthFull();
-        functionLayout.setHeight(null);
-        functionLayout.setMargin(false);
-        functionLayout.setPadding(false);
-        functionLayout.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
-        this.mainLayout.add(functionLayout);
+        var matchedFilterLayout = new VerticalLayout();
+        matchedFilterLayout.setWidth(null);
+        matchedFilterLayout.setHeight(null);
+        matchedFilterLayout.setPadding(false);
+        matchedFilterLayout.setMargin(false);
+        matchedFilterLayout.setSpacing(false);
 
-        this.favorites = new MenuBar();
-        this.favorites.addItem(VaadinIcon.HEART.create());
-        this.favorites.addThemeVariants(MenuBarVariant.LUMO_ICON);
-        this.favorites.setVisible(false);
-        functionLayout.add(this.favorites);
+        Popover matchedFilterPopover = new Popover(matchedFilterLayout);
+        matchedFilterPopover.setWidth(null);
+        matchedFilterPopover.setPosition(PopoverPosition.BOTTOM_START);
+        matchedFilterPopover.addThemeVariants(PopoverVariant.ARROW);
 
-        CallbackDataProvider.FetchCallback<MatchedFilter<G, P>, MatchedFilterQuery> fetcher = query -> query.getFilter()
-                .map(matches -> matches.fetch(query.getOffset(), query.getLimit())).orElse(Stream.empty());
-        CallbackDataProvider.CountCallback<MatchedFilter<G, P>, MatchedFilterQuery> counter = query -> query.getFilter()
-                .map(MatchedFilterQuery::count).orElse(0);
-        this.filterInput = new ComboBox<>();
+        var matchedFilterExamples = new HashMap<T, VerticalLayout>();
+
+        this.filterInputClearButton = buildFilterButton(VaadinIcon.TRASH, null);
+
+        this.filterInput = new TextField();
         this.filterInput.setWidthFull();
-        this.filterInput.setDataProvider(new CallbackDataProvider<>(fetcher, counter), MatchedFilterQuery::new);
-        this.filterInput.setItemLabelGenerator(MatchedFilter::getTerm);
-        this.filterInput.setRenderer(new ComponentRenderer<>(this::renderAsMatch));
+        this.filterInput.setPrefixComponent(VaadinIcon.SEARCH.create());
+        this.filterInput.setValueChangeMode(ValueChangeMode.LAZY);
+        this.filterInput.addKeyDownListener(Key.ARROW_DOWN, event -> {
+            // STREAM CHILDREN OF MATCHED FILTER LAYOUT
+            matchedFilterLayout.getChildren()
+                    // STREAM CHILDREN OF TERM LAYOUTS
+                    .flatMap(Component::getChildren)
+                    // FIND FIRST FILTER BUTTON
+                    .filter(Button.class::isInstance)
+                    .findFirst()
+                    // FOCUS BUTTON
+                    .map(Focusable.class::cast)
+                    .ifPresent(Focusable::focus);
+        });
         this.filterInput.addValueChangeListener(event -> {
-            if (event.getValue() != null) {
-                addFilter(event.getValue());
-                notify(Collections.singletonList(event.getValue()), Collections.emptyList(), event.isFromClient());
-                this.filterInput.setValue(null);
+            matchedFilterLayout.removeAll();
+
+            if (StringUtils.isEmpty(event.getValue())) {
+                matchedFilterExamples.values().forEach(matchedFilterLayout::add);
+            } else {
+                 FilterBar.this.analyzer.analyze(event.getValue())
+                        .entrySet().stream()
+                        .map(entry -> buildTermMatchLayout(entry.getKey(), entry.getValue()))
+                        .forEach(matchedFilterLayout::add);
+
+                if (matchedFilterLayout.getChildren().findAny().isEmpty()) {
+                    matchedFilterLayout.add(this.filterInputClearButton);
+                }
+            }
+
+            if (event.isFromClient()) {
+                matchedFilterPopover.open();
+            } else {
+                matchedFilterPopover.close();
             }
         });
-        functionLayout.add(this.filterInput);
+        this.mainLayout.add(this.filterInput);
+        matchedFilterPopover.setTarget(this.filterInput);
 
-        Button removeAllBtn = new Button(VaadinIcon.CLOSE_SMALL.create());
-        removeAllBtn.getElement().getStyle().set("margin-top", "0px");
-        removeAllBtn.getElement().getStyle().set("margin-bottom", "0px");
-        removeAllBtn.addClickListener(event -> {
-            List<MatchedFilter<G, P>> filters = Collections.unmodifiableList(new ArrayList<>(this.filters.keySet()));
-            filters.forEach(this::removeFilter);
-            notify(Collections.emptyList(), filters, event.isFromClient());
+        this.analyzer.addListener((term, keywordAnalyzer, added) -> {
+            if (added) {
+                var exampleLayout = this.buildTermExampleLayout(term, matchedFilterPopover);
+                matchedFilterExamples.put(term, exampleLayout);
+                if (this.filterInput.isEmpty()) {
+                    matchedFilterLayout.add(exampleLayout);
+                }
+            } else {
+                var exampleLayout = matchedFilterExamples.remove(term);
+                if (this.filterInput.isEmpty()) {
+                    matchedFilterLayout.remove(exampleLayout);
+                }
+            }
         });
-        functionLayout.add(removeAllBtn);
+
+        this.filterInputClearButton.addClickListener(evt -> {
+            this.filterInput.setValue(this.filterInput.getEmptyValue());
+            matchedFilterPopover.open();
+            this.filterInput.focus();
+        });
+
+        this.functionLayout = new HorizontalLayout();
+        this.functionLayout.setWidthFull();
+        this.functionLayout.setHeight(null);
+        this.functionLayout.setMargin(false);
+        this.functionLayout.setPadding(false);
+        this.functionLayout.setSpacing(false);
+        this.functionLayout.setVisible(false);
+        this.functionLayout.getStyle().set("margin-top", "5px");
+        this.mainLayout.add(functionLayout);
 
         this.filterLayout = new HorizontalLayout();
         this.filterLayout.setWidthFull();
         this.filterLayout.setHeight(null);
         this.filterLayout.setMargin(false);
         this.filterLayout.setPadding(false);
-        this.filterLayout.getElement().getStyle().set("overflow-x", "auto");
-        this.filterLayout.getElement().getStyle().set("margin-top", "5px");
-        this.mainLayout.add(this.filterLayout);
+        this.filterLayout.setSpacing(true);
+        this.filterLayout.getStyle().set("margin-left", "5px");
+        this.filterLayout.getStyle().set("overflow-x", "auto");
+        this.filterLayout.getStyle().set("scrollbar-width", "none");
+        this.filterLayout.getStyle().set("background-size", "10px 10px");
+        this.filterLayout.getStyle().set("background-position", "0px 0px, 5px 5px");
+        this.filterLayout.getStyle().set("background-image", "radial-gradient(rgba(128, 128, 128, 0.1) 2px, transparent 0px), radial-gradient(rgba(128, 128, 128, 0.1) 2px, transparent 0px)");
+
+        this.filterOperatorButton = buildFilterButton(VaadinIcon.LINK, null);
+        this.filterOperatorButton.addClickListener(event -> {
+            updateOperator(this.filterOperator == MatchedFilterOperator.AND ? MatchedFilterOperator.OR : MatchedFilterOperator.AND, event.isFromClient());
+        });
+        this.functionLayout.add(this.filterOperatorButton);
+
+        this.filterClearButton = buildFilterButton(VaadinIcon.CLOSE_SMALL, null);
+        this.filterClearButton.setVisible(false);
+        this.filterClearButton.getStyle().set("margin-left", "5px");
+        this.filterClearButton.addClickListener(event -> {
+            Set<MatchedFilter<T, K>> removed = Set.copyOf(this.filters.keySet());
+            removed.forEach(this::removeFilter);
+            notify(Collections.emptySet(), removed, this.filterOperator, event.isFromClient());
+        });
+        this.functionLayout.add(this.filterClearButton);
+
+        this.filterScrollLeftButton = buildFilterButton(VaadinIcon.ANGLE_LEFT, null);
+        this.filterScrollLeftButton.getStyle().set("margin-left", "5px");
+        this.filterScrollLeftButton.addClickListener(event -> {
+            this.filterLayout.getElement().executeJs("this.scrollBy(-"+this.filterScrollDistance+", 0);");
+        });
+        this.functionLayout.add(this.filterScrollLeftButton);
+
+        this.functionLayout.add(this.filterLayout);
+
+        this.filterScrollRightButton = buildFilterButton(VaadinIcon.ANGLE_RIGHT, null);
+        this.filterScrollRightButton.getStyle().set("margin-left", "5px");
+        this.filterScrollRightButton.addClickListener(event -> {
+            this.filterLayout.getElement().executeJs("this.scrollBy("+this.filterScrollDistance+", 0);");
+        });
+        this.functionLayout.add(this.filterScrollRightButton);
     }
 
     @Override
@@ -413,174 +216,253 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
         return this.mainLayout;
     }
 
-    private Component renderAsMatch(MatchedFilter<G, P> filter) {
-        VerticalLayout matchLayout = new VerticalLayout();
-        matchLayout.setWidthFull();
-        matchLayout.setHeight(null);
-        matchLayout.setMargin(false);
-        matchLayout.setPadding(false);
-        matchLayout.setSpacing(false);
+    private VerticalLayout buildTermExampleLayout(T term, Popover matchedFilterPopover) {
+        var layout = buildTermLayout(term);
 
-        HorizontalLayout groupLayout = new HorizontalLayout();
-        groupLayout.setWidthFull();
-        groupLayout.setHeight(null);
-        groupLayout.setMargin(false);
-        groupLayout.setPadding(false);
-        matchLayout.add(groupLayout);
-
-        Label groupLabel = new Label(this.groupRenderer.apply(filter.getGroup()));
-        groupLabel.setWidthFull();
-        groupLayout.getElement().getStyle().set("font-weight", "bold");
-        groupLayout.add(groupLabel);
-
-        if (filter.getMatchCount() != null) {
-            Label countLabel = new Label(String.valueOf(filter.getMatchCount()));
-            countLabel.getElement().getStyle().set("padding-top", "2px");
-            countLabel.getElement().getStyle().set("padding-bottom", "2px");
-            countLabel.getElement().getStyle().set("padding-right", "5px");
-            countLabel.getElement().getStyle().set("padding-left", "5px");
-            countLabel.getElement().getStyle().set("background-color", "rgba(128,128,128,0.1)");
-            countLabel.getElement().getStyle().set("font-size", "0.75em");
-            groupLayout.add(countLabel);
-            groupLayout.setVerticalComponentAlignment(FlexComponent.Alignment.CENTER, countLabel);
+        for (KeywordMatch<K> example: Optional.ofNullable(term.getFavorites()).orElseGet(Collections::emptyList)) {
+            var button = buildKeywordMatchButton(VaadinIcon.STAR, renderKeywords(example.getKeywords()));
+            button.addClickListener(event -> {
+                var added = new MatchedFilter<>(term, example.getKeywords());
+                var removed = add(added);
+                notify(Collections.singleton(added), removed, this.filterOperator, event.isFromClient());
+                matchedFilterPopover.close();
+            });
+            layout.add(button);
         }
 
-        String partHtml = filter.getPartMappings().entrySet().stream()
-                .map(entry -> "<b>" + this.partRenderer.apply(entry.getKey()) + "</b>: "
-                        + "<i>" + entry.getValue() + "</i>")
-                .reduce((a, b) -> a + ", " + b)
-                .orElse("");
-        Html partLabel = new Html("<span>" + partHtml + "</span>");
-        partLabel.getElement().getStyle().set("font-size", "0.70em");
-        matchLayout.add(partLabel);
+        for (KeywordMatch<K> example: Optional.ofNullable(term.getExamples()).orElseGet(Collections::emptyList)) {
+            var button = buildKeywordMatchButton(VaadinIcon.CHECK, renderKeywords(example.getKeywords()));
+            button.setEnabled(false);
+            layout.add(button);
+        }
 
-        return matchLayout;
+        return layout;
     }
 
-    private void addFilter(MatchedFilter<G, P> filter) {
-        String badgeLabel = filter.getPartMappings().entrySet().stream()
-                .map(entry -> this.partRenderer.apply(entry.getKey()) + ": " + entry.getValue())
+    private VerticalLayout buildTermMatchLayout(T term, List<LinkedHashMap<K, String>> keywordSets) {
+        var layout = buildTermLayout(term);
+
+        var threshold = Math.max(term.displayThreshold(), 1);
+        addKeywordMatchButtons(layout, term, keywordSets.subList(0, Math.min(keywordSets.size(), threshold)));
+
+        if (term.displayThreshold() < keywordSets.size()) {
+            var button = buildKeywordMatchButton(VaadinIcon.LEVEL_DOWN, this.thresholdRenderer.apply(keywordSets.size()-threshold));
+            button.addClickListener(event -> {
+                layout.remove(button);
+                addKeywordMatchButtons(layout, term, keywordSets.subList(threshold, keywordSets.size()));
+            });
+            layout.add(button);
+        }
+
+        return layout;
+    }
+
+    private void addKeywordMatchButtons(VerticalLayout termLayout, T term, List<LinkedHashMap<K, String>> keywordSets) {
+        for (var keywords: keywordSets) {
+            var button = buildKeywordMatchButton(VaadinIcon.PLUS, renderKeywords(keywords));
+            button.addClickListener(event -> {
+                var added = new MatchedFilter<>(term, keywords);
+                var removed = add(added);
+                notify(Collections.singleton(added), removed, this.filterOperator, event.isFromClient());
+                this.filterInput.setValue(this.filterInput.getEmptyValue());
+            });
+            termLayout.add(button);
+        }
+    }
+
+    private Button buildKeywordMatchButton(VaadinIcon icon, String label) {
+        var button = buildFilterButton(icon, label);
+        button.getStyle().set("margin-left", "1em");
+        button.getStyle().set("margin-bottom", "5px");
+        return button;
+    }
+
+    private VerticalLayout buildTermLayout(T term) {
+        var layout = new VerticalLayout();
+        layout.setWidth(null);
+        layout.setHeight(null);
+        layout.setMargin(false);
+        layout.setPadding(false);
+        layout.setSpacing(false);
+
+        var termLabel = new NativeLabel(this.termLabelRenderer.apply(term));
+        termLabel.setWidth(null);
+        termLabel.getStyle().set("font-weight", "bold");
+        termLabel.getStyle().set("color", "var(--lumo-contrast-50pct)");
+        layout.add(termLabel);
+
+        return layout;
+    }
+
+    private Button buildFilterButton(VaadinIcon icon, String label) {
+        var button = new Button(label, Optional.ofNullable(icon).map(VaadinIcon::create).orElse(null));
+        button.getElement().getStyle().set("margin-top", "0px");
+        button.getElement().getStyle().set("margin-bottom", "0px");
+        button.addThemeVariants(ButtonVariant.LUMO_SMALL);
+        return button;
+    }
+
+    private String renderKeywords(Map<K, String> keywords) {
+        return keywords.entrySet().stream()
+                .map(entry -> this.keywordLabelRenderer.apply(entry.getKey()) + ": " + entry.getValue())
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("");
+    }
 
-        Button filterBadge = new Button(badgeLabel, VaadinIcon.CLOSE_SMALL.create());
-        filterBadge.getElement().getStyle().set("margin-top", "0px");
-        filterBadge.getElement().getStyle().set("margin-bottom", "0px");
-        filterBadge.addThemeVariants(ButtonVariant.LUMO_SMALL);
-        filterBadge.addClickListener(event -> {
+    private void updateOperator(MatchedFilterOperator operator, boolean isFromClient) {
+        var previousOperator = this.filterOperator;
+        this.filterOperator = operator;
+        this.filterOperatorButton.setIcon(operator == MatchedFilterOperator.AND
+                ? VaadinIcon.LINK.create()
+                : VaadinIcon.UNLINK.create());
+
+        if (!this.filters.isEmpty()) {
+            notify(Collections.emptySet(), Collections.emptySet(), previousOperator, isFromClient);
+        }
+    }
+
+    private void updateFunctionVisibility() {
+        this.functionLayout.setVisible(!this.filters.isEmpty());
+        this.filterClearButton.setVisible(this.filters.size() > 1);
+    }
+
+    private void notify(Set<MatchedFilter<T, K>> addedFilters, Set<MatchedFilter<T, K>> removedFilters, MatchedFilterOperator previousOperator, boolean isFromClient) {
+        fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, addedFilters, removedFilters, getFilters(), previousOperator, this.filterOperator));
+    }
+
+    /**
+     * Returns the used {@link TermAnalyzer}.
+     *
+     * @return The analyzer, never null
+     */
+    public TermAnalyzer<T, K> getAnalyzer() {
+        return analyzer;
+    }
+
+    /**
+     * Returns an unmodifiable view of all filters.
+     *
+     * @return A set of all filters, never null.
+     */
+    public Set<MatchedFilter<T, K>> getFilters() {
+        return Collections.unmodifiableSet(this.filters.keySet());
+    }
+
+    /**
+     * Adds a new {@link MatchedFilter} using the given term and keywords.
+     * <p>
+     * Any already added filters will be evaluated with {@link MatchedTerm#isCombinable(Map, MatchedFilter)} for their
+     * combinability with the new filter and removed if they are not.
+     *
+     * @param term The term of the filter; might <b>not</b> be null.
+     * @param keywords The keywords of the filter; might <b>not</b> be null.
+     * @return The added filter, never null
+     */
+    public MatchedFilter<T, K> addFilter(T term, KeywordMatch<K> keywords) {
+        if (term == null) {
+            throw new IllegalArgumentException("cannot add a filter for a null term");
+        } else if (keywords == null) {
+            throw new IllegalArgumentException("Cannot add a filter with null keywords");
+        }
+
+        var added = new MatchedFilter<>(term, keywords.getKeywords());
+        var removed = add(added);
+        notify(Collections.singleton(added), removed, this.filterOperator, false);
+        return added;
+    }
+
+    private Set<MatchedFilter<T, K>> add(MatchedFilter<T, K> filter) {
+        var removed = removeFilters(other -> !filter.getTerm().isCombinable(filter.getKeywordInputs(), other)
+                || !other.getTerm().isCombinable(other.getKeywordInputs(), filter));
+
+        var label = renderKeywords(filter.getKeywordInputs());
+
+        var button = buildFilterButton(VaadinIcon.CLOSE_SMALL, label);
+        button.addClickListener(event -> {
             removeFilter(filter);
-            notify(Collections.emptyList(), Collections.singletonList(filter), event.isFromClient());
+            notify(Collections.emptySet(), Collections.singleton(filter), this.filterOperator, event.isFromClient());
         });
 
-        this.filters.put(filter, filterBadge);
-        this.filterLayout.add(filterBadge);
+        this.filters.put(filter, button);
+        this.filterLayout.add(button);
+
+        updateFunctionVisibility();
+
+        return removed;
     }
 
-    private void removeFilter(MatchedFilter<G, P> filter) {
+    /**
+     * Removes the given filter.
+     *
+     * @param filter The filter to remove; might <b>not</b> be null or unknown.
+     */
+    public void removeFilter(MatchedFilter<T, K> filter) {
+        remove(filter);
+        notify(Collections.emptySet(), Collections.singleton(filter), this.filterOperator, false);
+    }
+
+    private void remove(MatchedFilter<T, K> filter) {
+        if (filter == null) {
+            throw new IllegalArgumentException("Cannot remove a null filter");
+        } else if (!this.filters.containsKey(filter)) {
+            throw new IllegalArgumentException("Cannot remove bn unknown filter");
+        }
+
         this.filterLayout.remove(this.filters.get(filter));
         this.filters.remove(filter);
-    }
 
-    private void notify(List<MatchedFilter<G, P>> added, List<MatchedFilter<G, P>> removed, boolean isFromClient) {
-        fireEvent(new MatchedFilterChangedEvent<>(this, isFromClient, added, removed));
-    }
-
-    /**
-     * Begins a new {@link FilterModificationBuilder} to programmatically apply modifications to the
-     * {@link FilterBar}'s current set of {@link MatchedFilter}s.
-     *
-     * @return A new {@link FilterModificationBuilder}, never null
-     */
-    public FilterModificationBuilder modifyFilters() {
-        return new FilterModificationBuilder();
+        updateFunctionVisibility();
     }
 
     /**
-     * Begins a new {@link FavoriteModificationBuilder} to programmatically apply modifications to the
-     * {@link FilterBar}'s current set of favorites.
+     * Removes all filters of the given term.
      *
-     * @return A new {@link FavoriteModificationBuilder}, never null
+     * @param term The term whose filters to remove; might <b>not</b> be null.
+     * @return A set of all filters removed, never null
      */
-    public FavoriteModificationBuilder modifyFavorites() {
-        return new FavoriteModificationBuilder();
-    }
-
-    /**
-     * Returns the currently used renderer for displaying groups.
-     *
-     * @return The renderer, never null
-     */
-    public Function<G, String> getGroupRenderer() {
-        return this.groupRenderer;
-    }
-
-    /**
-     * Sets the render for displaying groups.
-     *
-     * @param groupRenderer The renderer; might <b>not</b> be null.
-     */
-    public void setGroupRenderer(Function<G, String> groupRenderer) {
-        if (groupRenderer == null) {
-            throw new IllegalArgumentException("Cannot render groups using a null renderer");
+    public Set<MatchedFilter<T, K>> removeFilters(T term) {
+        if (term == null) {
+            throw new IllegalArgumentException("Cannot remove filters with a null term");
         }
-        this.groupRenderer = groupRenderer;
+
+        return removeFilters(filter -> Objects.equals(filter.getTerm(), term));
     }
 
     /**
-     * Returns the currently used renderer for displaying parts.
+     * Removes all filters matching the given predictae.
      *
-     * @return The renderer, never null
+     * @param predicate The predicate to match; might <b>not</b> be null.
+     * @return A set of all filters removed, never null
      */
-    public Function<P, String> getPartRenderer() {
-        return partRenderer;
-    }
-
-    /**
-     * Sets the render for displaying parts.
-     *
-     * @param partRenderer The renderer; might <b>not</b> be null.
-     */
-    public void setPartRenderer(Function<P, String> partRenderer) {
-        if (groupRenderer == null) {
-            throw new IllegalArgumentException("Cannot render parts using a null renderer");
+    public Set<MatchedFilter<T, K>> removeFilters(Predicate<MatchedFilter<T, K>> predicate) {
+        if (predicate == null) {
+            throw new IllegalArgumentException("Cannot remove filters using a null predicate");
         }
-        this.partRenderer = partRenderer;
+
+        var removed = remove(predicate);
+
+        notify(Collections.emptySet(), removed, this.filterOperator, false);
+
+        return removed;
     }
 
     /**
-     * Sets a retriever capable to estimate the amount of matches the given filter would receive.
-     * <p>
-     * The resulting count is displayed in the filter selection popup.
+     * Removes all filters.
      *
-     * @param matchCountRetriever The estimating {@link Function}; might be null, then no match count is displayed
+     * @return A set of all filters removed, never null
      */
-    public void setMatchCountRetriever(Function<MatchedFilter<G, P>, Long> matchCountRetriever) {
-        this.matchCountRetriever = matchCountRetriever;
+    public Set<MatchedFilter<T, K>> clearFilters() {
+        return removeFilters(filter -> true);
     }
 
-    /**
-     * Sets the mode on how to estimate the amount of matches a filter would receive.
-     * <p>
-     * Only effective if {@link #setMatchCountRetriever(Function)} is set.
-     *
-     * @param matchCountMode The mode; might <b>not</b> be null.
-     */
-    public void setMatchCountMode(MatchCountMode matchCountMode) {
-        if (matchCountMode == null) {
-            throw new IllegalArgumentException("Cannot set the match count mode to null");
-        }
-        this.matchCountMode = matchCountMode;
-    }
+    private Set<MatchedFilter<T, K>> remove(Predicate<MatchedFilter<T, K>> predicate) {
+        var removed = this.filters.keySet().stream()
+                .filter(predicate)
+                .collect(Collectors.toUnmodifiableSet());
 
-    /**
-     * Sets the maximum amount of filters an amount a matches will be retrieved for.
-     * <p>
-     * Only effective if {@link #setMatchCountRetriever(Function)} is set.
-     *
-     * @param threshold The amount of filters
-     */
-    public void setMatchCountThreshold(int threshold) {
-        this.matchCountThreshold = threshold;
+        removed.forEach(this::remove);
+
+        return removed;
     }
 
     /**
@@ -593,13 +475,205 @@ public class FilterBar<G extends Enum<G> & MatchedFilterInputGroup, P extends En
     }
 
     /**
+     * Sets the text displayed to clear the input with if no match was found.
+     *
+     * @param text The text; might be null.
+     */
+    public void setNoMatchLabel(String text) {
+        this.filterInputClearButton.setText(text);
+    }
+
+    /**
+     * Returns the currently used renderer for displaying term labels.
+     *
+     * @return The renderer, never null
+     */
+    public Function<T, String> getTermLabelRenderer() {
+        return this.termLabelRenderer;
+    }
+
+    /**
+     * Sets the render for displaying term labels.
+     *
+     * @param termRenderer The renderer; might <b>not</b> be null.
+     */
+    public void setTermLabelRenderer(Function<T, String> termRenderer) {
+        if (termRenderer == null) {
+            throw new IllegalArgumentException("Cannot render term labels using a null renderer");
+        }
+        this.termLabelRenderer = termRenderer;
+    }
+
+    /**
+     * Returns the currently used renderer for displaying keyword labels.
+     *
+     * @return The renderer, never null
+     */
+    public Function<K, String> getKeywordLabelRenderer() {
+        return keywordLabelRenderer;
+    }
+
+    /**
+     * Sets the render for displaying keyword labels.
+     *
+     * @param keywordRenderer The renderer; might <b>not</b> be null.
+     */
+    public void setKeywordLabelRenderer(Function<K, String> keywordRenderer) {
+        if (keywordRenderer == null) {
+            throw new IllegalArgumentException("Cannot render keyword labels using a null renderer");
+        }
+        this.keywordLabelRenderer = keywordRenderer;
+    }
+
+    /**
+     * Returns the currently used renderer for displaying thresholds.
+     *
+     * @return The renderer, never null
+     */
+    public IntFunction<String> getThresholdLabelRenderer() {
+        return thresholdRenderer;
+    }
+
+    /**
+     * Sets the render for displaying thresholds.
+     * <p>
+     * The renderer is used when a term's match count exceeds {@link MatchedTerm#displayThreshold()}.
+     *
+     * @param thresholdRenderer The renderer; might <b>not</b> be null.
+     */
+    public void setThresholdLabelRenderer(IntFunction<String> thresholdRenderer) {
+        if (thresholdRenderer == null) {
+            throw new IllegalArgumentException("Cannot render thresholds using a null renderer");
+        }
+        this.thresholdRenderer = thresholdRenderer;
+    }
+
+    /**
+     * Returns the logic operator combining the current filters.
+     *
+     * @return The operator, never null
+     */
+    public MatchedFilterOperator getOperator() {
+        return this.filterOperator;
+    }
+
+    /**
+     * Sets the operator combining the current filters.
+     * <p>
+     * Triggers a {@link MatchedFilterChangedEvent} if there currently are filters.
+     *
+     * @param operator The operator to set; might <b>not</b> be null.
+     */
+    public void setOperator(MatchedFilterOperator operator) {
+        if (operator == null) {
+            throw new IllegalArgumentException("Cannot set a null operator");
+        }
+
+        updateOperator(operator, false);
+    }
+
+    /**
+     * Returns whether the user can switch the operator.
+     *
+     * @return True if the user can switch the operator, false otherwise
+     */
+    public boolean isOperatorEnabled() {
+        return this.filterOperatorButton.isEnabled();
+    }
+
+    /**
+     * Sets whether the user can switch the operator.
+     *
+     * @param enabled True if the user can switch the operator, false otherwise
+     */
+    public void enableOperator(boolean enabled) {
+        this.filterOperatorButton.setEnabled(enabled);
+    }
+
+    /**
+     * Returns whether the user can see the operator.
+     *
+     * @return True if the user can see the operator, false otherwise
+     */
+    public boolean isOperatorVisible() {
+        return this.filterOperatorButton.isVisible();
+    }
+
+    /**
+     * Returns whether the user can see the operator.
+     *
+     * @param visible True if the user can see the operator, false otherwise
+     */
+    public void setOperatorVisible(boolean visible) {
+        this.filterOperatorButton.setVisible(visible);
+    }
+
+    /**
+     * Sets a tooltip text for the operator.
+     *
+     * @param text The text, might be null
+     */
+    public void setOperatorTooltip(String text) {
+        this.filterOperatorButton.setTooltipText(text);
+    }
+
+    /**
+     * Sets a tooltip text for clearing all filters.
+     *
+     * @param text The text, might be null
+     */
+    public void setClearTooltip(String text) {
+        this.filterClearButton.setTooltipText(text);
+    }
+
+    /**
+     * Returns the scroll distance in pixels on every scroll left/right click.
+     *
+     * @return The distance in pixels, > 0
+     */
+    public int getScrollDistance() {
+        return this.filterScrollDistance;
+    }
+
+    /**
+     * Sets the scroll distance in pixels on every scroll left/right click.
+     *
+     * @param distance The distance to set, in pixels; might <b>not</b> be <1
+     */
+    public void setScrollDistance(int distance) {
+        if (distance < 1) {
+            throw new IllegalArgumentException("Cannot scroll for a distance smaller than 1 px");
+        }
+
+        this.filterScrollDistance = distance;
+    }
+
+    /**
+     * Sets a tooltip text for scrolling left on the filters.
+     *
+     * @param text The text, might be null
+     */
+    public void setScrollLeftTooltip(String text) {
+        this.filterScrollLeftButton.setTooltipText(text);
+    }
+
+    /**
+     * Sets a tooltip text for scrolling right on the filters.
+     *
+     * @param text The text, might be null
+     */
+    public void setScrollRightTooltip(String text) {
+        this.filterScrollRightButton.setTooltipText(text);
+    }
+
+    /**
      * Adds a {@link ComponentEventListener} to listen to {@link MatchedFilterChangedEvent}s.
      *
      * @param listener The listener to add; might <b>not</b> be null.
      * @return A {@link Registration} to remove the listener with, never null
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public Registration addFilterChangedListener(ComponentEventListener<MatchedFilterChangedEvent<G, P>> listener) {
+    public Registration addFilterChangedListener(ComponentEventListener<MatchedFilterChangedEvent<T, K>> listener) {
         return addListener(MatchedFilterChangedEvent.class, (ComponentEventListener) listener);
     }
 }

@@ -34,6 +34,7 @@
 	</dependencyManagement>
 
 	<modules>
+		<module>vaadin24-breadcrumb</module>
 		<module>vaadin24-filter-bar</module>
 		<module>vaadin24-graph-pane</module>
 		<module>vaadin24-heat-calendar</module>
