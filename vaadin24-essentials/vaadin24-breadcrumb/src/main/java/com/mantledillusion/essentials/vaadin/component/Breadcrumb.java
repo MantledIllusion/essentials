@@ -21,6 +21,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
+/**
+ * Component for navigating through a route hierarchy.
+ */
 public class Breadcrumb extends Composite<Component> implements HasSize {
 
     private interface Enabler {
@@ -28,11 +31,24 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
         void enable();
     }
 
+    /**
+     * Customer to a builder.
+     *
+     * @param <B> The type of builder to customize.
+     */
     public interface Customizer<B> {
 
+        /**
+         * Customizes the given builder.
+         *
+         * @param builder The builder; might <b>not</b> be null.
+         */
         void customize(B builder);
     }
 
+    /**
+     * Builder to a crumb nested in the {@link Breadcrumb} itself.
+     */
     public class ParentCrumbBuilder extends AbstractCrumbBuilder<ParentCrumbBuilder> {
 
         private ParentCrumbBuilder(MenuItem crumbMenu, Enabler enabler) {
@@ -45,6 +61,9 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
         }
     }
 
+    /**
+     * Builder to a crumb nested in one of the {@link Breadcrumb}'s menus.
+     */
     public class ChildCrumbBuilder extends AbstractCrumbBuilder<ParentCrumbBuilder> {
 
         private ChildCrumbBuilder(MenuItem crumbMenu, Enabler enabler) {
@@ -62,34 +81,89 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
             this.enabler = enabler;
         }
 
+        /**
+         * Customizes the crumb's {@link Style}.
+         *
+         * @param customizer The customizer to the style; might <b>not</b> be null
+         * @return this
+         */
         @SuppressWarnings("unchecked")
         public B setStyle(Customizer<Style> customizer) {
             customizer.customize(this.crumbMenu.getStyle());
             return (B) this;
         }
 
+        /**
+         * Customizes the crumb's {@link Tooltip}.
+         *
+         * @param customizer The customizer to the tooltip; might <b>not</b> be null
+         * @return this
+         */
         @SuppressWarnings("unchecked")
         public B setTooltip(Customizer<Tooltip> customizer) {
             customizer.customize(Tooltip.forComponent(this.crumbMenu));
             return (B) this;
         }
 
+        /**
+         * Adds a child crumb to nest under another crumb.
+         *
+         * @param href The URL to navigate to; might <b>not</b> be null.
+         * @param label The label of the crumb; might <b>not</b> be null.
+         * @return this
+         */
         public B addCrumb(String href, String label) {
             return addCrumb(new Anchor(href, label));
         }
 
+        /**
+         * Adds a child crumb to nest under another crumb.
+         *
+         * @param <NavigationTargetType> The {@link Component} type to navigate to.
+         * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+         * @param label The label of the crumb; might <b>not</b> be null.
+         * @return this
+         */
         public <NavigationTargetType extends Component> B addCrumb(Class<NavigationTargetType> target, String label) {
             return addCrumb(target, null, null, label);
         }
 
+        /**
+         * Adds a child crumb to nest under another crumb.
+         *
+         * @param <NavigationTargetType> The {@link Component} type to navigate to.
+         * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+         * @param routeParameters The parameters within the route to the target; might be null.
+         * @param label The label of the crumb; might <b>not</b> be null.
+         * @return this
+         */
         public <NavigationTargetType extends Component> B addCrumb(Class<NavigationTargetType> target, RouteParameters routeParameters, String label) {
             return addCrumb(target, routeParameters, null, label);
         }
 
+        /**
+         * Adds a child crumb to nest under another crumb.
+         *
+         * @param <NavigationTargetType> The {@link Component} type to navigate to.
+         * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+         * @param queryParameters The parameters to the query for the target; might be null.
+         * @param label The label of the crumb; might <b>not</b> be null.
+         * @return this
+         */
         public <NavigationTargetType extends Component> B addCrumb(Class<NavigationTargetType> target, QueryParameters queryParameters, String label) {
             return addCrumb(target, null, queryParameters, label);
         }
 
+        /**
+         * Adds a child crumb to nest under another crumb.
+         *
+         * @param <NavigationTargetType> The {@link Component} type to navigate to.
+         * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+         * @param routeParameters The parameters within the route to the target; might be null.
+         * @param queryParameters The parameters to the query for the target; might be null.
+         * @param label The label of the crumb; might <b>not</b> be null.
+         * @return this
+         */
         public <NavigationTargetType extends Component> B addCrumb(Class<NavigationTargetType> target, RouteParameters routeParameters, QueryParameters queryParameters, String label) {
             return addCrumb(buildLink(target, routeParameters, queryParameters, label));
         }
@@ -104,6 +178,13 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
             return (B) this;
         }
 
+        /**
+         * Adds a child crumb to nest under another crumb.
+         *
+         * @param label The label of the crumb; might <b>not</b> be null.
+         * @param customizer A customizer to the {@link ParentCrumbBuilder} building the crumb; might <b>not</b> be null.
+         * @return this
+         */
         @SuppressWarnings("unchecked")
         public B addCrumb(String label, Customizer<ChildCrumbBuilder> customizer) {
             this.enabler.enable();
@@ -173,10 +254,13 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
     private final HorizontalLayout crumbLayout;
     private final Button crumbScrollLeftButton;
     private final Button crumbScrollRightButton;
-    private final CrumbStyle crumbStyle = new CrumbStyle();
+    private final CrumbStyle parentCrumbStyle = new CrumbStyle();
 
     private int crumbScrollDistance = 50;
 
+    /**
+     * Default constructor.
+     */
     public Breadcrumb() {
         this.crumbLayout = new HorizontalLayout();
         this.crumbLayout.setWidthFull();
@@ -211,54 +295,151 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
         return mainLayout;
     }
 
-    public Style getCrumbStyle() {
-        return this.crumbStyle;
+    /**
+     * Returns the {@link Style} applied to all crumbs directly nested in the {@link Breadcrumb} itself.
+     *
+     * @return The style, never null
+     */
+    public Style getParentCrumbStyle() {
+        return this.parentCrumbStyle;
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param label The label of the crumb; might <b>not</b> be null.
+     */
     public void addCrumb(String label) {
         addCrumb(null, null, null, label, builder -> {});
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param label The label of the crumb; might <b>not</b> be null.
+     * @param customizer A customizer to the {@link ParentCrumbBuilder} building the crumb; might <b>not</b> be null.
+     */
     public void addCrumb(String label, Customizer<ParentCrumbBuilder> customizer) {
         addCrumb(null, null, null, label, customizer);
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param href The URL to navigate to; might <b>not</b> be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     */
     public void addCrumb(String href, String label) {
         addCrumb(new Anchor(href, label), builder -> {});
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param href The URL to navigate to; might <b>not</b> be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     * @param customizer A customizer to the {@link ParentCrumbBuilder} building the crumb; might <b>not</b> be null.
+     */
     public void addCrumb(String href, String label, Customizer<ParentCrumbBuilder> customizer) {
         addCrumb(new Anchor(href, label), customizer);
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, String label) {
         addCrumb(target, null, null, label, builder -> {});
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     * @param customizer A customizer to the {@link ParentCrumbBuilder} building the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, String label, Customizer<ParentCrumbBuilder> customizer) {
         addCrumb(target, null, null, label, customizer);
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param routeParameters The parameters within the route to the target; might be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, RouteParameters routeParameters, String label) {
         addCrumb(target, routeParameters, null, label, builder -> {});
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param routeParameters The parameters within the route to the target; might be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     * @param customizer A customizer to the {@link ParentCrumbBuilder} building the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, RouteParameters routeParameters, String label, Customizer<ParentCrumbBuilder> customizer) {
         addCrumb(target, routeParameters, null, label, customizer);
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param queryParameters The parameters to the query for the target; might be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, QueryParameters queryParameters, String label) {
         addCrumb(target, null, queryParameters, label, builder -> {});
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param queryParameters The parameters to the query for the target; might be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     * @param customizer A customizer to the {@link ParentCrumbBuilder} building the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, QueryParameters queryParameters, String label, Customizer<ParentCrumbBuilder> customizer) {
         addCrumb(target, null, queryParameters, label, customizer);
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param routeParameters The parameters within the route to the target; might be null.
+     * @param queryParameters The parameters to the query for the target; might be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, RouteParameters routeParameters, QueryParameters queryParameters, String label) {
         addCrumb(target, routeParameters, queryParameters, label, builder -> {});
     }
 
+    /**
+     * Adds a parent crumb to directly nest in the {@link Breadcrumb} itself.
+     *
+     * @param <NavigationTargetType> The {@link Component} type to navigate to.
+     * @param target The @{@link com.vaadin.flow.router.Route} annotated class to navigate to; might <b>not</b> be null.
+     * @param routeParameters The parameters within the route to the target; might be null.
+     * @param queryParameters The parameters to the query for the target; might be null.
+     * @param label The label of the crumb; might <b>not</b> be null.
+     * @param customizer A customizer to the {@link ParentCrumbBuilder} building the crumb; might <b>not</b> be null.
+     */
     public <NavigationTargetType extends Component> void addCrumb(Class<NavigationTargetType> target, RouteParameters routeParameters, QueryParameters queryParameters, String label, Customizer<ParentCrumbBuilder> customizer) {
         addCrumb(buildLink(target, routeParameters, queryParameters, label), customizer);
     }
@@ -270,12 +451,12 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
         crumb.setVisible(this.crumbLayout.getChildren().findAny().isPresent());
         this.crumbLayout.add(crumb);
 
-        this.crumbStyle.apply(link.getStyle()
+        this.parentCrumbStyle.apply(link.getStyle()
                 .set("margin-top", "-3px"));
         this.crumbLayout.add(link);
 
         var crumbMenu = crumb.addItem("⯈");
-        this.crumbStyle.apply(crumbMenu.getStyle()
+        this.parentCrumbStyle.apply(crumbMenu.getStyle()
                 .set("margin-top", "-3px")
                 .set("font-size", "0.6em"));
         crumbMenu.setEnabled(false);
@@ -313,7 +494,7 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
     /**
      * Returns the scroll distance in pixels on every scroll left/right click.
      *
-     * @return The distance in pixels, > 0
+     * @return The distance in pixels, greater than 0
      */
     public int getScrollDistance() {
         return this.crumbScrollDistance;
@@ -322,7 +503,7 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
     /**
      * Sets the scroll distance in pixels on every scroll left/right click.
      *
-     * @param distance The distance to set, in pixels; might <b>not</b> be <1
+     * @param distance The distance to set, in pixels; might <b>not</b> be smaller than 1
      */
     public void setScrollDistance(int distance) {
         if (distance < 1) {
