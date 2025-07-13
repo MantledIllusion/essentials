@@ -75,7 +75,9 @@ public class KeywordMatch<K extends MatchedKeyword> {
      * Returns a list of matches with the given keywords.
      *
      * @param <K> The ({@link MatchedKeyword} representing the distinguishable keywords of a term (a first name, a last name, a company name, a zip code, ...)
+     * @param <S> The String-representable segment type.
      * @param keyword The keyword matching a segment of a term; might <b>not</b> be null.
+     * @param mapper The mapper to get a String representation to a segment from; might <b>not</b> be null.
      * @param segments The segments matched by the keyword; might <b>not</b> be null.
      * @return A new list of {@link KeywordMatch} instances
      */

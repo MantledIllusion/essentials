@@ -37,6 +37,22 @@ public interface MatchedTerm<K extends MatchedKeyword> extends Term<K> {
         return null;
     }
 
+    /**
+     * Returns whether this {@link MatchedTerm} in a {@link MatchedFilter} with the given keywords is combinable with
+     * the other given {@link MatchedFilter}.
+     * <p>
+     * Can be used to implement logics where a term ...<br>
+     * - can only be filtered once<br>
+     * - can be filtered multiple times if the other instance does not match the same keywords<br>
+     * - cannot be filtered together with specific other terms<br>
+     * - etc
+     * <p>
+     * Returns true by default.
+     *
+     * @param keywords The keywords to this {@link MatchedTerm}; might <b>not</b> be null
+     * @param other The {@link MatchedFilter} to check against; might <b>not</b> be null
+     * @return True if this term and its keywords is combinable with the given other, false otherwise
+     */
     default boolean isCombinable(Map<K, String> keywords, MatchedFilter<? extends MatchedTerm<K>, K> other) {
         return true;
     }

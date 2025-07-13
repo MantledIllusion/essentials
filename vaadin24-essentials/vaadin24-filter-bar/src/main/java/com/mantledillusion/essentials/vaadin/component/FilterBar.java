@@ -629,7 +629,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     /**
      * Returns the scroll distance in pixels on every scroll left/right click.
      *
-     * @return The distance in pixels, > 0
+     * @return The distance in pixels, greater than 0
      */
     public int getScrollDistance() {
         return this.filterScrollDistance;
@@ -638,7 +638,7 @@ public class FilterBar<T extends MatchedTerm<K>, K extends MatchedKeyword> exten
     /**
      * Sets the scroll distance in pixels on every scroll left/right click.
      *
-     * @param distance The distance to set, in pixels; might <b>not</b> be <1
+     * @param distance The distance to set, in pixels; might <b>not</b> be smaller than 1
      */
     public void setScrollDistance(int distance) {
         if (distance < 1) {
