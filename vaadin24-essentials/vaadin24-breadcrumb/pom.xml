@@ -10,7 +10,7 @@
 	</parent>
 	
 	<artifactId>vaadin24-breadcrumb</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>jar</packaging>
 	
 	<name>Vaadin 24 Breadcrumb</name>
