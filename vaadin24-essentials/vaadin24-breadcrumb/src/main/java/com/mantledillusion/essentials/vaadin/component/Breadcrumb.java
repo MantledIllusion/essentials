@@ -106,6 +106,18 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
         }
 
         /**
+         * Customizes the crumb's {@link Tooltip}.
+         *
+         * @param visible Whether the crumb should be visible
+         * @return this
+         */
+        @SuppressWarnings("unchecked")
+        public B setVisible(boolean visible) {
+            this.crumbMenu.setVisible(visible);
+            return (B) this;
+        }
+
+        /**
          * Adds a child crumb to nest under another crumb.
          *
          * @param href The URL to navigate to; might <b>not</b> be null.
