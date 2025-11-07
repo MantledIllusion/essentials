@@ -504,6 +504,13 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
     }
 
     /**
+     * Removes all parent crumbs directly nested in the {@link Breadcrumb} itself.
+     */
+    public void clearCrumbs() {
+        this.crumbLayout.removeAll();
+    }
+
+    /**
      * Returns the scroll distance in pixels on every scroll left/right click.
      *
      * @return The distance in pixels, greater than 0
