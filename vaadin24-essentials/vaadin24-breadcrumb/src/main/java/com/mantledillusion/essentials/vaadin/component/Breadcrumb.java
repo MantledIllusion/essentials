@@ -64,7 +64,7 @@ public class Breadcrumb extends Composite<Component> implements HasSize {
     /**
      * Builder to a crumb nested in one of the {@link Breadcrumb}'s menus.
      */
-    public class ChildCrumbBuilder extends AbstractCrumbBuilder<ParentCrumbBuilder> {
+    public class ChildCrumbBuilder extends AbstractCrumbBuilder<ChildCrumbBuilder> {
 
         private ChildCrumbBuilder(MenuItem crumbMenu, Enabler enabler) {
             super(crumbMenu, enabler);
