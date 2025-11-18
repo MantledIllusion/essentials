@@ -10,7 +10,7 @@
 	</parent>
 	
 	<artifactId>vaadin24-graph-pane</artifactId>
-	<version>3.0.0-SNAPSHOT</version>
+	<version>3.0.0</version>
 	<packaging>jar</packaging>
 	
 	<name>Vaadin 24 Graph Pane</name>
