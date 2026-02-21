@@ -1,5 +1,12 @@
-# VAADIN Flow FilterBar
+# VAADIN 24 FilterBar
 
-The **_FilterBar_** is a component that can be elegantly used above displayed data that can be filtered somehow, like a **_Grid_**.
+The **_FilterBar_** component allows users to compile complex filter combinations using only a single TextField by analyzing an entered String as a term of 1->n keywords via [Collo](https://github.com/MantledIllusion/collo).
 
-Upon clicking its only **_Button_**, it opens a **_Dialog_** where the user can enter a free-form one line text, which will be automatically analyzed and split into a recognized pattern matching exactly definable filter criteria.
+Supported features are:
+* analyzing entered terms using a configurable RegEx-based **_TermAnalyzer_**
+* offering examples and favorites of configured terms
+* displaying recognized keyword combinations as clickable suggestions
+* adding and removing analyzed terms in a list of filters
+* auto-removal of non-combinable terms
+* toggling between AND/OR filter concatenation
+* I18N of labels, placeholders and tooltips
